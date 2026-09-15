@@ -1,2 +1,5 @@
-django==6.1.1
+django==6.1
+djangorestframework==3.18.1 
 #python manage.py runserver localhost:8080
+#python manage.py makemigrations
+#python manage.py migratie

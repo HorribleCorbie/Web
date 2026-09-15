@@ -23,7 +23,7 @@ class Accomodattion(models.Model):
     # employee = models.ForeignKey("auth.User", on_delete=models.CASCADE, null=True, related_name="employee_user")
     class Meta:
             verbose_name="Проживание"
-            verbose_name_plural = "Проживаний"
+            verbose_name_plural = "Проживания"
 
 class Provision(models.Model):
     quantity = models.IntegerField("Количество")
@@ -32,7 +32,14 @@ class Provision(models.Model):
     # client = models.ForeignKey("auth.User", on_delete=models.CASCADE, null=True, related_name="client_user")
     # employee = models.ForeignKey("auth.User", on_delete=models.CASCADE, null=True, related_name="employee_user")
     # accomodattion = models.ForeignKey("auth.Accomodattion", on_delete=models.CASCADE, null=True)
+    class Meta:
+        verbose_name="Проживание"
+        verbose_name_plural = "Проживания"
 
 class Service(models.Model):
     name = models.TextField("Название")
     price = models.FloatField("Цена")
+
+    class Meta:
+        verbose_name="Услуга"
+        verbose_name_plural = "Услуги"
