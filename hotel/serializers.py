@@ -9,7 +9,7 @@ class ServiceSerializer (serializers. ModelSerializer):
 class RoomSerializer (serializers. ModelSerializer):
     class Meta:
         model = Room
-        fields = ['number', 'description', 'price']
+        fields = '__all__'
 
 class ProvisionSerializer (serializers. ModelSerializer):
     class Meta:
@@ -17,7 +17,7 @@ class ProvisionSerializer (serializers. ModelSerializer):
         fields = '__all__'
 
 class AccomodattionSerializer (serializers. ModelSerializer):
-    room = RoomSerializer(read_only=True)
+    #room = RoomSerializer(read_only=True)
 
     class Meta:
         model = Accomodattion
