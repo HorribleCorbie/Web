@@ -11,6 +11,11 @@ class RoomSerializer (serializers. ModelSerializer):
         model = Room
         fields = ['number', 'description', 'price']
 
+class ProvisionSerializer (serializers. ModelSerializer):
+    class Meta:
+        model = Provision
+        fields = '__all__'
+
 class AccomodattionSerializer (serializers. ModelSerializer):
     room = RoomSerializer(read_only=True)
 
