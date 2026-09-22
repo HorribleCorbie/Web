@@ -1,5 +1,5 @@
 from rest_framework import mixins
-
+from django.contrib.auth.models import User
 from rest_framework.viewsets import GenericViewSet
 
 from hotel.models import *
@@ -40,3 +40,12 @@ class ProvisionViewset(mixins.CreateModelMixin,
                        GenericViewSet):
     queryset= Provision.objects.all()
     serializer_class = ProvisionSerializer
+
+class UserViewset(mixins.CreateModelMixin, 
+                       mixins.DestroyModelMixin, 
+                       mixins.UpdateModelMixin, 
+                       mixins.RetrieveModelMixin, 
+                       mixins.ListModelMixin, 
+                       GenericViewSet):
+    queryset= User.objects.all()
+    serializer_class = UserSerializer

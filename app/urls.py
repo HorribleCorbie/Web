@@ -28,6 +28,7 @@ router.register("rooms", RoomsViewset, basename="rooms")
 router.register("service", ServicesViewset, basename="service")
 router.register("accomodattion", AccomodattionViewset, basename="accomodattion")
 router.register("provision", ProvisionViewset, basename="provision")
+router.register("users", UserViewset, basename="users")
 
 urlpatterns = [
     path('', views.ShowRoomsView.as_view()),
