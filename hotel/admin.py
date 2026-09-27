@@ -18,3 +18,8 @@ class ServiceAdmin(admin.ModelAdmin):
 @admin.register(Provision)
 class ProvisionAdmin(admin.ModelAdmin):
     list_display=['id', 'quantity', 'price']
+
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return False

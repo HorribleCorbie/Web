@@ -49,3 +49,12 @@ class UserViewset(mixins.CreateModelMixin,
                        GenericViewSet):
     queryset= User.objects.all()
     serializer_class = UserSerializer
+
+    def get_queryset(self):
+        queryset = User.objects.all()
+        role = self.request.query_params.get('role')
+
+        if role:
+            queryset = queryset.filter(profile__role=role)
+
+        return queryset

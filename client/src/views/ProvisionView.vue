@@ -3,43 +3,47 @@ import axios from 'axios';
 import { computed, onBeforeMount, ref, } from 'vue';
 import Cookies from 'js-cookie';
 
-const provisions = ref([])
-let loading = ref(false)
 const provisionToAdd = ref({});
 const provisionToEdit = ref({});
-let selectedProvision = ref()
+
+const provisions = ref([])
 const accomodattions = ref([])
 const clients = ref([])
 const employees = ref([])
 const services = ref([])
 
-function makePriceComputeds(source) {
-    const totalPrice = computed(() => {
-        if (source.value.quantity != undefined && source.value.service) {
-            const quantity = source.value.quantity
-            const service = services.value.find(x => x.id === source.value.service)
-            return quantity * service.price
-        }
-        return 0
-    });
+let loading = ref(false)
+let isError = ref(false)
+let textOfError = ref()
 
-    return { totalPrice };
-}
 
-const { totalPrice } = makePriceComputeds(provisionToAdd)
-const { totalPrice: totalPriceEdit } = makePriceComputeds(provisionToEdit)
+const source = computed(() => {
+    return provisionToEdit.value.id
+        ? provisionToEdit.value
+        : provisionToAdd.value
+})
+
+const totalPrice = computed(() => {
+    if (source.value.quantity != undefined && source.value.service) {
+        const quantity = source.value.quantity
+        const service = services.value.find(x => x.id === source.value.service)
+        return quantity * service.price
+    }
+    return 0
+});
+
 
 function findCLient(id_accomodattion) {
     const accomodattion = findAccomodattion(id_accomodattion)
     if (accomodattion != undefined) {
         const client = clients.value.find(x => x.id === accomodattion.client)
-        return client!= undefined ? (client.first_name ? client.first_name : client.username) : id_accomodattion
+        return client != undefined ? (client.first_name ? client.first_name : client.username) : id_accomodattion
     }
 }
 
 function accomodattionLabel(id) {
     const acc = findAccomodattion(id);
-    if (acc!= undefined) return `Клиент: ${findCLient(id)}, даты: ${acc.in_date}:${acc.out_date}`;
+    if (acc != undefined) return `Клиент: ${findCLient(id)}, даты: ${acc.in_date} по ${acc.out_date}`;
 }
 
 function findAccomodattion(id_accomodattion) {
@@ -52,11 +56,6 @@ function findService(id_service) {
     return s ? s.name : id_service
 }
 
-async function fetchClients() {
-    const r = await axios.get("/api/users/")
-    clients.value = r.data;
-}
-
 async function onProvisionEditClick(provision) {
     provisionToEdit.value = { ...provision };
 }
@@ -64,10 +63,17 @@ async function onProvisionEditClick(provision) {
 async function onUpdateProvision() {
     const payload = {
         ...provisionToEdit.value,
-        price: totalPriceEdit.value,
+        price: totalPrice.value,
     };
-    await axios.put(`/api/provision/${provisionToEdit.value.id}/`, payload);
-    await fetchProvision();
+    try {
+        await axios.put(`/api/provision/${provisionToEdit.value.id}/`, payload);
+        await fetchProvision();
+        provisionToEdit.value = {}
+    } catch (error) {
+        console.log(error.response?.data);
+        isError.value = true
+        textOfError.value = error.response.data[0]
+    }
 }
 
 async function onProvisionAdd() {
@@ -75,8 +81,16 @@ async function onProvisionAdd() {
         ...provisionToAdd.value,
         price: totalPrice.value,
     };
-    await axios.post("/api/provision/", payload);
-    await fetchProvision();
+    try {
+        await axios.post("/api/provision/", payload);
+        await fetchProvision();
+        provisionToAdd.value = {}
+    } catch (error) {
+        console.log(error.response?.data);
+        isError.value = true
+        textOfError.value = error.response.data[0]
+    }
+
 }
 
 async function fetchProvision() {
@@ -97,9 +111,13 @@ async function fetchAccomodattion() {
 }
 
 async function fetchEmployees() {
-    const r = await axios.get("/api/users/")
-    //   ("/api/users/?groups=Сотрудники")
+    const r = await axios.get("/api/users/?role=1")
     employees.value = r.data;
+}
+
+async function fetchClients() {
+    const r = await axios.get("/api/users/?role=2")
+    clients.value = r.data;
 }
 
 onBeforeMount(async () => {
@@ -123,57 +141,25 @@ async function onRemoveClick(provision) {
 
         <h1>Оказание услуг</h1>
 
-        <div style="margin-bottom: 10px;">
-            <form @submit.prevent.stop="onProvisionAdd" class="objects">
-                <div class="form-floating">
-                    <select class="form-select" v-model="provisionToAdd.service" required>
-                        <option :value="s.id" v-for="s in services">{{ s.name }}</option>
-                    </select>
-                    <label for="floatingInput">Услуга</label>
-                </div>
-                <div class="form-floating">
-                    <input type="number" class="form-control" min="1" max="100" v-model="provisionToAdd.quantity"
-                        required />
-                    <label for="floatingInput">Количество</label>
-                </div>
-                <div class="form-floating">
-                    <input type="number" class="form-control" :value="totalPrice" readonly />
-                    <label for="floatingInput">Сумма</label>
-                </div>
-                <div class="form-floating">
-                    <select class="form-select" v-model="provisionToAdd.accomodattion" required>
-                        <option :value="a.id" v-for="a in accomodattions">
-                            {{accomodattionLabel(a.id)}} </option>
-                    </select>
-                    <label for="floatingInput">Проживание</label>
-                </div>
-                <div class="form-floating">
-                    <select class="form-select" v-model="provisionToAdd.employee" required>
-                        <option :value="e.id" v-for="e in employees">{{ e.username }}</option>
-                    </select>
-                    <label for="floatingInput">Сотрудник</label>
-                </div>
-                <button class="btn btn-warning">
-                    Добавить
-                </button>
-            </form>
-        </div>
-
         <div class="objects">
-            <select class="form-select" v-model="selectedProvision">
-                <option :value="provision" v-for="provision in provisions">
-                    Услуга {{ findService(provision.service) }}, {{accomodattionLabel(provision.accomodattion)}}
-                </option>
-            </select>
-            <button class="btn btn-success" @click="onProvisionEditClick(selectedProvision)" data-bs-toggle="modal"
-                data-bs-target="#editProvisionModal">
-                <i class="bi bi-pen-fill"> Редактировать</i>
+            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#provisionModel">
+                Добавить оказание услуги
             </button>
-            <button class="btn btn-danger" @click="onRemoveClick(selectedProvision)">
-                <i class="bi bi-x"> Удалить оказание услуги</i>
-            </button>
+            <div v-if="loading">Данные загружаются, подождите...</div>
+            <div v-for="provision in provisions">
+                <div class="list">
+                    <div> Услуга: {{ findService(provision.service) }}. {{ accomodattionLabel(provision.accomodattion)
+                    }}</div>
+                    <button class="btn btn-success" @click="onProvisionEditClick(provision)" data-bs-toggle="modal"
+                        data-bs-target="#editProvisionModal">
+                        <i class="bi bi-pen-fill"> </i>
+                    </button>
+                    <button class="btn btn-danger" @click="onRemoveClick(provision)">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            </div>
         </div>
-
 
         <div class="modal fade" id="editProvisionModal" tabindex="-1">
             <div class="modal-dialog">
@@ -196,7 +182,7 @@ async function onRemoveClick(provision) {
                             </div>
                             <div class="col">
                                 <div class="form-floating">
-                                    <input type="number" class="form-control" :value="totalPriceEdit" readonly />
+                                    <input type="number" class="form-control" :value="totalPrice" readonly />
                                     <label for="floatingInput">Цена</label>
                                 </div>
                             </div>
@@ -212,7 +198,7 @@ async function onRemoveClick(provision) {
                             <div class="col">
                                 <div class="form-floating">
                                     <select class="form-select" v-model="provisionToEdit.accomodattion" required>
-                                        <option :value="a.id" v-for="a in accomodattions">{{accomodattionLabel(a.id)}}
+                                        <option :value="a.id" v-for="a in accomodattions">{{ accomodattionLabel(a.id) }}
                                         </option>
                                     </select>
                                     <label for="floatingInput">Проживание</label>
@@ -241,6 +227,88 @@ async function onRemoveClick(provision) {
             </div>
         </div>
 
+
+        <div class="modal fade" id="provisionModel" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5">
+                            Изменение оказания услуги
+                        </h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body objects">
+                        <div class="row">
+                            <div class="col">
+                                <div class="form-floating">
+                                    <select class="form-select" v-model="provisionToAdd.service" required>
+                                        <option :value="s.id" v-for="s in services">{{ s.name }}</option>
+                                    </select>
+                                    <label for="floatingInput">Услуга</label>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="form-floating">
+                                    <input type="number" class="form-control" :value="totalPrice" readonly />
+                                    <label for="floatingInput">Цена</label>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="form-floating">
+                                    <input type="number" class="form-control" min="1" max="100"
+                                        v-model="provisionToAdd.quantity" required />
+                                    <label for="floatingInput">Количество</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col">
+                                <div class="form-floating">
+                                    <select class="form-select" v-model="provisionToAdd.accomodattion" required>
+                                        <option :value="a.id" v-for="a in accomodattions">{{ accomodattionLabel(a.id) }}
+                                        </option>
+                                    </select>
+                                    <label for="floatingInput">Проживание</label>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="form-floating">
+                                    <select class="form-select" v-model="provisionToAdd.employee" required>
+                                        <option :value="e.id" v-for="e in employees">{{ e.username }}</option>
+                                    </select>
+                                    <label for="floatingInput">Сотрудник</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal">
+                            Закрыть
+                        </button>
+                        <button data-bs-dismiss="modal" type="button" class="btn btn-success" @click="onProvisionAdd">
+                            Добавить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <transition name="modal" v-if="isError">
+            <div class="modal-mask">
+                <div class="modal-wrapper">
+                    <div class="modal-container">
+                        <div>
+                            {{ textOfError }}
+                        </div>
+                        <div>
+                            <button class="modal-default-button" @click="isError = false">
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
     </div>
 
 </template>
@@ -252,7 +320,7 @@ async function onRemoveClick(provision) {
 
     margin: 40px auto;
     padding: 10px;
-    max-width: 500px;
+    max-width: 1000px;
 
     border-radius: 15px;
     background-color: Snow;
@@ -269,5 +337,51 @@ h1 {
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+.list {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: 10px;
+    border-radius: 15px;
+    background-color: white;
+    padding: 5px;
+    border: 1px solid silver;
+    width: 100%;
+    align-items: center;
+}
+
+
+.modal-mask {
+    position: fixed;
+    z-index: 9998;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: table;
+    transition: opacity 0.3s ease;
+}
+
+.modal-wrapper {
+    display: table-cell;
+    vertical-align: middle;
+}
+
+.modal-container {
+    width: 300px;
+    margin: 0px auto;
+    padding: 20px 30px;
+    background-color: #fff;
+    border-radius: 2px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.33);
+    transition: all 0.3s ease;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-family: Helvetica, Arial, sans-serif;
 }
 </style>

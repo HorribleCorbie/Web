@@ -3,14 +3,17 @@ import axios from 'axios';
 import { computed, onBeforeMount, ref, } from 'vue';
 import Cookies from 'js-cookie';
 
-const accomodattions = ref([])
-let loading = ref(false)
 const accomodattionToAdd = ref({});
 const accomodattionToEdit = ref({});
-let selectedAccomodattion = ref()
+
+const accomodattions = ref([])
 const rooms = ref([])
 const clients = ref([])
 const employees = ref([])
+
+let loading = ref(false)
+let isError = ref(false)
+let textOfError = ref()
 
 function roomLabel(id) {
     const r = rooms.value.find(x => x.id === id);
@@ -19,32 +22,31 @@ function roomLabel(id) {
 
 function clientLabel(id) {
     const c = clients.value.find(x => x.id === id);
-    return c.first_name ? c.first_name : c.username;
+    return c != undefined ? (c.first_name ? c.first_name : c.username) : id
 }
 
-function makePriceComputeds(source) {
-    const nights = computed(() => {
-        const { in_date, out_date } = source.value || {};
-        if (!in_date || !out_date) return 0;
-        const diff = Math.round((new Date(out_date) - new Date(in_date)) / 86400000);
-        return Number.isFinite(diff) ? diff : 0;
-    });
+const source = computed(() => {
+    return accomodattionToEdit.value.id
+        ? accomodattionToEdit.value
+        : accomodattionToAdd.value
+})
 
-    const totalPrice = computed(() => {
-        const roomId = source.value?.room;
-        const { in_date, out_date } = source.value || {};
-        const room = rooms.value.find(r => r.id === roomId);
-        if (!room || nights.value < 0 || !in_date || !out_date) return 0;
-        if (nights.value === 0)
-            return room.price * 1
-        return room.price * nights.value;
-    });
+const nights = computed(() => {
+    const { in_date, out_date } = source.value || {};
+    if (!in_date || !out_date) return 0;
+    const diff = Math.round((new Date(out_date) - new Date(in_date)) / 86400000);
+    nights.value = nights.value + 1
+    return Number.isFinite(diff) ? diff + 1 : 0;
+});
 
-    return { nights, totalPrice };
-}
+const totalPrice = computed(() => {
+    const roomId = source.value?.room;
+    const { in_date, out_date } = source.value || {};
+    const room = rooms.value.find(r => r.id === roomId);
+    if (!room || nights.value <= 0 || !in_date || !out_date) return 0;
+    return room.price * nights.value;
+});
 
-const { nights, totalPrice } = makePriceComputeds(accomodattionToAdd);
-const { nights: nightsEdit, totalPrice: totalPriceEdit } = makePriceComputeds(accomodattionToEdit);
 
 
 async function onAccomodattionEditClick(accomodattion) {
@@ -54,10 +56,17 @@ async function onAccomodattionEditClick(accomodattion) {
 async function onUpdateAccomodattion() {
     const payload = {
         ...accomodattionToEdit.value,
-        price: totalPriceEdit.value,
+        price: totalPrice.value,
     };
-    await axios.put(`/api/accomodattion/${accomodattionToEdit.value.id}/`, payload);
-    await fetchAccomodattion();
+    try {
+        await axios.put(`/api/accomodattion/${accomodattionToEdit.value.id}/`, payload);
+        accomodattionToEdit.value = {};
+        await fetchAccomodattion();
+    }catch(error){
+        isError.value = true;
+        textOfError.value = error.response.data[0];
+    }
+    
 }
 
 async function onAccomodattionAdd() {
@@ -65,8 +74,14 @@ async function onAccomodattionAdd() {
         ...accomodattionToAdd.value,
         price: totalPrice.value,
     };
-    await axios.post("/api/accomodattion/", payload);
-    await fetchAccomodattion();
+    try {
+        await axios.post("/api/accomodattion/", payload);
+        accomodattionToAdd.value = {};
+        await fetchAccomodattion();
+    } catch (error) {
+        isError.value = true;
+        textOfError.value = error.response.data[0];
+    }
 }
 
 async function fetchAccomodattion() {
@@ -81,15 +96,14 @@ async function fetchRooms() {
     rooms.value = r.data;
 }
 
-async function fetchClients() {
-    const r = await axios.get("/api/users/")
-    clients.value = r.data;
+async function fetchEmployees() {
+    const r = await axios.get("/api/users/?role=1")
+    employees.value = r.data;
 }
 
-async function fetchEmployees() {
-    const r = await axios.get("/api/users/")
-    //   ("/api/users/?groups=Сотрудники")
-    employees.value = r.data;
+async function fetchClients() {
+    const r = await axios.get("/api/users/?role=2")
+    clients.value = r.data;
 }
 
 onBeforeMount(async () => {
@@ -111,60 +125,26 @@ async function onRemoveClick(accomodattion) {
     <div class="mycontainer">
 
         <h1>Проживания</h1>
-
-        <div style="margin-bottom: 10px;">
-            <form @submit.prevent.stop="onAccomodattionAdd" class="objects">
-                <div class="form-floating">
-                    <select class="form-select" v-model="accomodattionToAdd.room" required>
-                        <option :value="r.id" v-for="r in rooms">{{ r.number }}</option>
-                    </select>
-                    <label for="floatingInput">Номер</label>
-                </div>
-                <div class="form-floating">
-                    <input type="date" class="form-control" v-model="accomodattionToAdd.in_date" required />
-                    <label for="floatingInput">Дата въезда</label>
-                </div>
-                <div class="form-floating">
-                    <input type="date" class="form-control" v-model="accomodattionToAdd.out_date" required />
-                    <label for="floatingInput">Дата выезда</label>
-                </div>
-                <div class="form-floating">
-                    <input type="number" class="form-control" :value="totalPrice" readonly />
-                    <label for="floatingInput">Цена</label>
-                </div>
-                <div class="form-floating">
-                    <select class="form-select" v-model="accomodattionToAdd.client" required>
-                        <option :value="c.id" v-for="c in clients">{{ c.username }}</option>
-                    </select>
-                    <label for="floatingInput">Клиенты</label>
-                </div>
-                <div class="form-floating">
-                    <select class="form-select" v-model="accomodattionToAdd.employee" required>
-                        <option :value="e.id" v-for="e in employees">{{ e.username }}</option>
-                    </select>
-                    <label for="floatingInput">Сотрудник</label>
-                </div>
-                <button class="btn btn-warning" :disabled="nights < 0">
-                    Добавить
-                </button>
-            </form>
-        </div>
-
         <div class="objects">
-            <select class="form-select" v-model="selectedAccomodattion">
-                <option :value="accomodattion" v-for="accomodattion in accomodattions">
-                    Номер {{ roomLabel(accomodattion.room) }}, даты:
-                    {{ accomodattion.in_date }}:{{ accomodattion.out_date }},
-                    клиент: {{ clientLabel(accomodattion.client) }}
-                </option>
-            </select>
-            <button class="btn btn-success" @click="onAccomodattionEditClick(selectedAccomodattion)"
-                data-bs-toggle="modal" data-bs-target="#editAccomodattionModal">
-                <i class="bi bi-pen-fill"> Редактировать</i>
+            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#accomodattionModal">
+                Добавить проживание
             </button>
-            <button class="btn btn-danger" @click="onRemoveClick(selectedAccomodattion)">
-                <i class="bi bi-x"> Удалить проживание</i>
-            </button>
+            <div v-if="loading">Данные загружаются, подождите...</div>
+            <div v-for="accomodattion in accomodattions">
+                <div class="list">
+                    <div> Номер {{ roomLabel(accomodattion.room) }}, даты:
+                        {{ accomodattion.in_date }}:{{ accomodattion.out_date }},
+                        клиент: {{ clientLabel(accomodattion.client) }}
+                    </div>
+                    <button class="btn btn-success" @click="onAccomodattionEditClick(accomodattion)"
+                        data-bs-toggle="modal" data-bs-target="#editAccomodattionModal">
+                        <i class="bi bi-pen-fill"> </i>
+                    </button>
+                    <button class="btn btn-danger" @click="onRemoveClick(accomodattion)">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            </div>
         </div>
 
 
@@ -189,7 +169,7 @@ async function onRemoveClick(accomodattion) {
                             </div>
                             <div class="col">
                                 <div class="form-floating">
-                                    <input type="number" class="form-control" :value="totalPriceEdit" readonly />
+                                    <input type="number" class="form-control" :value="totalPrice" readonly />
                                     <label for="floatingInput">Цена</label>
                                 </div>
                             </div>
@@ -233,7 +213,7 @@ async function onRemoveClick(accomodattion) {
                         <button type="button" class="btn btn-danger" data-bs-dismiss="modal">
                             Закрыть
                         </button>
-                        <button data-bs-dismiss="modal" type="button" class="btn btn-success" :disabled="nightsEdit < 0"
+                        <button data-bs-dismiss="modal" type="button" class="btn btn-success"
                             @click="onUpdateAccomodattion">
                             Сохранить
                         </button>
@@ -242,6 +222,97 @@ async function onRemoveClick(accomodattion) {
             </div>
         </div>
 
+
+        <div class="modal fade" id="accomodattionModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5">
+                            Добавить проживание
+                        </h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body objects">
+                        <div class="row">
+                            <div class="col">
+                                <div class="form-floating">
+                                    <select class="form-select" v-model="accomodattionToAdd.room" required>
+                                        <option :value="r.id" v-for="r in rooms">{{ r.number }}</option>
+                                    </select>
+                                    <label for="floatingInput">Номер</label>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="form-floating">
+                                    <input type="number" class="form-control" :value="totalPrice" readonly />
+                                    <label for="floatingInput">Цена</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col">
+                                <div class="form-floating">
+                                    <input type="date" class="form-control" v-model="accomodattionToAdd.in_date"
+                                        required />
+                                    <label for="floatingInput">Дата въезда</label>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="form-floating">
+                                    <input type="date" class="form-control" v-model="accomodattionToAdd.out_date"
+                                        required />
+                                    <label for="floatingInput">Дата выезда</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col">
+                                <div class="form-floating">
+                                    <select class="form-select" v-model="accomodattionToAdd.client" required>
+                                        <option :value="c.id" v-for="c in clients">{{ c.username }}</option>
+                                    </select>
+                                    <label for="floatingInput">Клиенты</label>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="form-floating">
+                                    <select class="form-select" v-model="accomodattionToAdd.employee" required>
+                                        <option :value="e.id" v-for="e in employees">{{ e.username }}</option>
+                                    </select>
+                                    <label for="floatingInput">Сотрудник</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal">
+                            Закрыть
+                        </button>
+                        <button data-bs-dismiss="modal" type="button" class="btn btn-success"
+                            @click="onAccomodattionAdd">
+                            Добавить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <transition name="modal" v-if="isError">
+            <div class="modal-mask">
+                <div class="modal-wrapper">
+                    <div class="modal-container">
+                        <div>
+                            {{ textOfError }}
+                        </div>
+                        <div>
+                            <button class="modal-default-button" @click="isError = false">
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
     </div>
 
 </template>
@@ -253,7 +324,7 @@ async function onRemoveClick(accomodattion) {
 
     margin: 40px auto;
     padding: 10px;
-    max-width: 500px;
+    max-width: 1000px;
 
     border-radius: 15px;
     background-color: Snow;
@@ -270,5 +341,50 @@ h1 {
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+.list {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: 10px;
+    border-radius: 15px;
+    background-color: white;
+    padding: 5px;
+    border: 1px solid silver;
+    width: 100%;
+    align-items: center;
+}
+
+.modal-mask {
+    position: fixed;
+    z-index: 9998;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: table;
+    transition: opacity 0.3s ease;
+}
+
+.modal-wrapper {
+    display: table-cell;
+    vertical-align: middle;
+}
+
+.modal-container {
+    width: 300px;
+    margin: 0px auto;
+    padding: 20px 30px;
+    background-color: #fff;
+    border-radius: 2px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.33);
+    transition: all 0.3s ease;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-family: Helvetica, Arial, sans-serif;
 }
 </style>

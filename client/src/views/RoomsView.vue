@@ -7,7 +7,6 @@ const rooms = ref([])
 let loading = ref(false)
 const roomToAdd = ref({});
 const roomToEdit = ref({});
-let selectedRoom = ref()
 
 async function onRoomEditClick(room) {
   roomToEdit.value = { ...room };
@@ -24,6 +23,7 @@ async function onRoomAdd() {
   await axios.post("/api/rooms/", {
     ...roomToAdd.value,
   });
+  roomToAdd.value = { number: null, description: '', price: null };
   await fetchRooms();
 }
 
@@ -52,41 +52,25 @@ async function onRemoveClick(room) {
 
     <h1>Номера отеля</h1>
 
-    <div style="margin-bottom: 10px;">
-      <form @submit.prevent.stop="onRoomAdd" class="objects">
-        <div class="form-floating">
-          <input type="number" class="form-control" min="1" v-model="roomToAdd.number" required />
-          <label for="floatingInput">Номер</label>
-        </div>
-        <div class="form-floating">
-          <input type="text" class="form-control" v-model="roomToAdd.description" required />
-          <label for="floatingInput">Описание</label>
-        </div>
-        <div class="form-floating">
-          <input type="number" min="1" class="form-control" v-model="roomToAdd.price" required />
-          <label for="floatingInput">Цена</label>
-        </div>
-        <button class="btn btn-warning">
-          Добавить
-        </button>
-      </form>
-    </div>
-
     <div class="objects">
-      <select class="form-select" v-model="selectedRoom">
-        <option :value="room" v-for="room in rooms">
-          Номер {{ room.number }}, цена: {{ room.price }}
-        </option>
-      </select>
-      <button class="btn btn-success" @click="onRoomEditClick(selectedRoom)" data-bs-toggle="modal"
-        data-bs-target="#editRoomModal">
-        <i class="bi bi-pen-fill"> Редактировать</i>
+      <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#roomModel">
+        Добавить номер
       </button>
-      <button class="btn btn-danger" @click="onRemoveClick(selectedRoom)">
-        <i class="bi bi-x"> Удалить номер</i>
-      </button>
+      <div v-if="loading">Данные загружаются, подождите...</div>
+      <div v-for="room in rooms">
+        <div class="list">
+          <div> Номер {{ room.number }}</div>
+          <div> Цена: {{ room.price }}</div>
+          <button class="btn btn-success" @click="onRoomEditClick(room)" data-bs-toggle="modal"
+            data-bs-target="#editRoomModal">
+            <i class="bi bi-pen-fill"> </i>
+          </button>
+          <button class="btn btn-danger" @click="onRemoveClick(room)">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+      </div>
     </div>
-
 
     <div class="modal fade" id="editRoomModal" tabindex="-1">
       <div class="modal-dialog">
@@ -97,7 +81,7 @@ async function onRemoveClick(room) {
             </h1>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
-          <div class="modal-body objects" >
+          <div class="modal-body objects">
             <div class="row">
               <div class="col">
                 <div class="form-floating">
@@ -131,6 +115,52 @@ async function onRemoveClick(room) {
       </div>
     </div>
 
+    <div class="modal fade" id="roomModel" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5">
+              Создание номера
+            </h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body objects">
+            <div class="row">
+              <div class="col">
+                <div class="form-floating">
+                  <input type="number" class="form-control" min="1" v-model="roomToAdd.number" required />
+                  <label for="floatingInput">Номер</label>
+                </div>
+
+              </div>
+              <div class="col">
+                <div class="form-floating">
+                  <input type="number" min="1" class="form-control" v-model="roomToAdd.price" required />
+                  <label for="floatingInput">Цена</label>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col">
+                <div class="form-floating">
+                  <input type="text" class="form-control" v-model="roomToAdd.description" required />
+                  <label for="floatingInput">Описание</label>
+                </div>
+
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-danger" data-bs-dismiss="modal">
+              Закрыть
+            </button>
+            <button data-bs-dismiss="modal" type="button" class="btn btn-success" @click="onRoomAdd">
+              Добавить
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
 </template>
@@ -142,7 +172,7 @@ async function onRemoveClick(room) {
 
   margin: 40px auto;
   padding: 10px;
-  max-width: 500px;
+  max-width: 1000px;
 
   border-radius: 15px;
   background-color: Snow;
@@ -159,5 +189,17 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.list {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 10px;
+  border-radius: 15px;
+  background-color: white;
+  padding: 5px;
+  border: 1px solid silver;
+  width: 100%;
+  align-items: center;
 }
 </style>
