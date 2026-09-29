@@ -25,6 +25,8 @@ class Room(models.Model):
     description = models.TextField("Описание")
     price = models.FloatField("Цена")
 
+    picture = models.ImageField("Изображение", null=True, upload_to="hotel")
+
     class Meta:
         verbose_name="Номер"
         verbose_name_plural = "Номера"
@@ -61,6 +63,7 @@ class Provision(models.Model):
 class Service(models.Model):
     name = models.TextField("Название")
     price = models.FloatField("Цена")
+    picture = models.ImageField("Изображение", null=True, upload_to="hotel")
 
     class Meta:
         verbose_name="Услуга"
