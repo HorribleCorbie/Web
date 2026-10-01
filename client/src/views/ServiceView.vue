@@ -5,6 +5,7 @@ import Cookies from 'js-cookie';
 
 const services = ref([])
 let loading = ref(false)
+const selectedService = ref([])
 const serviceToAdd = ref({});
 const serviceToEdit = ref({});
 let selectedImage = ref()
@@ -29,12 +30,12 @@ async function onServiceEditClick(service) {
 
 async function onUpdateService() {
   const formData = new FormData()
-  if (serviceUpdatePicture.value.files[0]){
+  if (serviceUpdatePicture.value.files[0]) {
     formData.append('picture', serviceUpdatePicture.value.files[0])
   }
-  
-  formData.append('name', serviceToEdit.value.name)
-  formData.append('price', serviceToEdit.value.price)
+
+  formData.set('name', serviceToEdit.value.name)
+  formData.set('price', serviceToEdit.value.price)
 
   await axios.put(`/api/service/${serviceToEdit.value.id}/`, formData);
   serviceToEdit.value = {}
@@ -95,13 +96,15 @@ async function onRemoveClick(service) {
       <div v-for="service in services">
         <div class="list">
           <div> {{ service.name }}</div>
-          <div v-show="service.picture"><img :src="service.picture" type="button" @click="selectedImage = service.picture"
-              data-bs-toggle="modal" data-bs-target="#imageModal" style="max-height: 60px;"></div>
+          <div v-show="service.picture"><img :src="service.picture" type="button"
+              @click="selectedImage = service.picture" data-bs-toggle="modal" data-bs-target="#imageModal"
+              style="max-height: 60px;"></div>
           <button class="btn btn-success" @click="onServiceEditClick(service)" data-bs-toggle="modal"
             data-bs-target="#editServiceModal">
             <i class="bi bi-pen-fill"> </i>
           </button>
-          <button class="btn btn-danger" @click="onRemoveClick(service)">
+          <button class="btn btn-danger" @click="selectedService = service" data-bs-toggle="modal"
+            data-bs-target="#deleteModal">
             <i class="bi bi-x"></i>
           </button>
         </div>
@@ -214,47 +217,37 @@ async function onRemoveClick(service) {
       </div>
     </div>
 
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5">
+              Удаление
+            </h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body objects ">
+            <div class="row">
+              <div class="col">
+                Вы точно хотите удалить услугу {{ selectedService.name }}?
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-success" data-bs-dismiss="modal">
+              Закрыть
+            </button>
+            <button data-bs-dismiss="modal" type="button" class="btn btn-danger"
+              @click="onRemoveClick(selectedService)">
+              Удалить
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
   </div>
 
 </template>
 
-<style scoped>
-.mycontainer {
-  display: flex;
-  flex-direction: column;
-
-  margin: 40px auto;
-  padding: 10px;
-  max-width: 1000px;
-
-  border-radius: 15px;
-  background-color: Snow;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-
-}
-
-h1 {
-  text-align: center;
-}
-
-.objects {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-
-.list {
-  display: grid;
-  grid-template-columns: 1fr auto auto auto;
-  gap: 10px;
-  border-radius: 15px;
-  background-color: white;
-  padding: 5px;
-  border: 1px solid silver;
-  width: 100%;
-  align-items: center;
-}
-</style>
+<style scoped></style>

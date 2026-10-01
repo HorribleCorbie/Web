@@ -5,6 +5,7 @@ import Cookies from 'js-cookie';
 
 const provisionToAdd = ref({});
 const provisionToEdit = ref({});
+const selectedProvision = ref({})
 
 const provisions = ref([])
 const accomodattions = ref([])
@@ -149,12 +150,13 @@ async function onRemoveClick(provision) {
             <div v-for="provision in provisions">
                 <div class="list">
                     <div> Услуга: {{ findService(provision.service) }}. {{ accomodattionLabel(provision.accomodattion)
-                    }}</div>
+                        }}</div>
                     <button class="btn btn-success" @click="onProvisionEditClick(provision)" data-bs-toggle="modal"
                         data-bs-target="#editProvisionModal">
                         <i class="bi bi-pen-fill"> </i>
                     </button>
-                    <button class="btn btn-danger" @click="onRemoveClick(provision)">
+                    <button class="btn btn-danger" @click="selectedProvision = provision" data-bs-toggle="modal"
+                        data-bs-target="#deleteModal">
                         <i class="bi bi-x"></i>
                     </button>
                 </div>
@@ -309,79 +311,38 @@ async function onRemoveClick(provision) {
                 </div>
             </div>
         </transition>
+
+        <div class="modal fade" id="deleteModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5">
+                            Удаление
+                        </h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body objects ">
+                        <div class="row">
+                            <div class="col">
+                                Вы точно хотите удалить оказания услуги {{ findService(selectedProvision.service) }} для {{
+                                    findCLient(selectedProvision.accomodattion) }}?
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-success" data-bs-dismiss="modal">
+                            Закрыть
+                        </button>
+                        <button data-bs-dismiss="modal" type="button" class="btn btn-danger"
+                            @click="onRemoveClick(selectedProvision)">
+                            Удалить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
 </template>
 
-<style scoped>
-.mycontainer {
-    display: flex;
-    flex-direction: column;
-
-    margin: 40px auto;
-    padding: 10px;
-    max-width: 1000px;
-
-    border-radius: 15px;
-    background-color: Snow;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-
-}
-
-h1 {
-    text-align: center;
-}
-
-.objects {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.list {
-    display: grid;
-    grid-template-columns: 1fr auto auto auto;
-    gap: 10px;
-    border-radius: 15px;
-    background-color: white;
-    padding: 5px;
-    border: 1px solid silver;
-    width: 100%;
-    align-items: center;
-}
-
-
-.modal-mask {
-    position: fixed;
-    z-index: 9998;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: table;
-    transition: opacity 0.3s ease;
-}
-
-.modal-wrapper {
-    display: table-cell;
-    vertical-align: middle;
-}
-
-.modal-container {
-    width: 300px;
-    margin: 0px auto;
-    padding: 20px 30px;
-    background-color: #fff;
-    border-radius: 2px;
-    text-align: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.33);
-    transition: all 0.3s ease;
-    border-radius: 15px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    font-family: Helvetica, Arial, sans-serif;
-}
-</style>
+<style scoped></style>

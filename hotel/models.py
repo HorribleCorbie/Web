@@ -25,7 +25,6 @@ class Room(models.Model):
     description = models.TextField("Описание")
     price = models.FloatField("Цена")
 
-    picture = models.ImageField("Изображение", null=True, upload_to="hotel")
 
     class Meta:
         verbose_name="Номер"
@@ -33,6 +32,14 @@ class Room(models.Model):
 
     def __str__(self)->str:
         return str(self.number)
+
+class Image(models.Model):
+    room = models.ForeignKey("hotel.Room", on_delete=models.CASCADE, null=True, related_name='picture')
+    picture = models.ImageField("Изображение", null=True, upload_to="hotel")
+
+    class Meta:
+        verbose_name="Изображение"
+        verbose_name_plural = "Изображения"
 
 class Accomodattion(models.Model):
     in_date  = models.DateField("Дата въезда")

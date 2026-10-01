@@ -40,7 +40,8 @@ INSTALLED_APPS = [
 
     'rest_framework',
 
-    'hotel', 'templates'
+    'hotel', 'templates',
+    'django_cleanup.apps.CleanupConfig'
 ]
 
 MIDDLEWARE = [

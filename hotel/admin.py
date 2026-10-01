@@ -19,6 +19,10 @@ class ServiceAdmin(admin.ModelAdmin):
 class ProvisionAdmin(admin.ModelAdmin):
     list_display=['id', 'quantity', 'price']
 
+@admin.register(Image)
+class ImageAdmin(admin.ModelAdmin):
+    list_display=['id', 'room', 'picture']
+
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):

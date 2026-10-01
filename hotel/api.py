@@ -13,6 +13,34 @@ class RoomsViewset(mixins.CreateModelMixin,
                    GenericViewSet):
     queryset= Room.objects.all()
     serializer_class = RoomSerializer 
+    
+    def perform_create(self, serializer):
+        room = serializer.save()
+        files = self.request.FILES.getlist('images') 
+        for f in files:
+            Image.objects.create(room=room, picture=f)
+
+    def perform_update(self, serializer):
+        room = serializer.save()
+        
+        files = self.request.FILES.getlist('images')
+        for f in files:
+            Image.objects.create(room=room, picture=f)
+            
+        delete_images = self.request.data.getlist('images_to_delete')
+        for d in delete_images:
+            image = Image.objects.get(id=d)
+            image.delete() 
+        
+
+class ImageViewset(mixins.CreateModelMixin, 
+                   mixins.DestroyModelMixin, 
+                   mixins.UpdateModelMixin, 
+                   mixins.RetrieveModelMixin, 
+                   mixins.ListModelMixin, 
+                   GenericViewSet):
+    queryset= Image.objects.all()
+    serializer_class = ImageSerializer 
 
 class ServicesViewset(mixins.CreateModelMixin,
                       mixins.DestroyModelMixin, 
