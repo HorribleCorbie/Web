@@ -19,6 +19,14 @@ const newDownloadedImages = ref({})
 
 let currentImage = ref([])
 
+window.onload = function () {
+  var myModal = document.getElementById('imageModal')
+
+  myModal.addEventListener('hidden.bs.modal', function () {
+    currentImage.value = []
+  })
+}
+
 async function roomsAddImageChange() {
   for (const file of roomsPictureRef.value.files) {
     roomAddImageUrl.value.push(URL.createObjectURL(file))
@@ -47,6 +55,8 @@ function closeAddModal() {
 }
 
 function closeUpdateModal() {
+  newDownloadedImages.value = {}
+  currentImage.value = []
   roomUpdateImageUrl.value = []
   if (roomsEditPictureRef.value) roomsEditPictureRef.value.value = ''
   roomToEdit.value = { number: '', description: '', price: '' }
@@ -274,7 +284,8 @@ async function onRemoveClick(room) {
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
+              @click="currentImage = []"></button>
           </div>
           <div class="modal-body objects">
             <div id="carousel" class="carousel slide" data-ride="carousel">
@@ -292,8 +303,6 @@ async function onRemoveClick(room) {
                 </button>
               </div>
             </div>
-          </div>
-          <div class="modal-footer">
           </div>
         </div>
       </div>
