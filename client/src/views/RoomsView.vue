@@ -1,6 +1,6 @@
 <script setup>
 import axios from 'axios';
-import { onBeforeMount, ref } from 'vue';
+import { onBeforeMount, ref, toRaw } from 'vue';
 import Cookies from 'js-cookie';
 
 const rooms = ref([])
@@ -16,6 +16,7 @@ const roomAddImageUrl = ref([])
 const roomUpdateImageUrl = ref([])
 
 const newDownloadedImages = ref({})
+const selectedImages = ref([])
 
 let currentImage = ref([])
 
@@ -25,12 +26,21 @@ window.onload = function () {
   myModal.addEventListener('hidden.bs.modal', function () {
     currentImage.value = []
   })
+
+  var roomModal = document.getElementById('roomModel')
+
+  roomModal.addEventListener('hidden.bs.modal', function () {
+    closeAddModal()
+  })
 }
 
 async function roomsAddImageChange() {
   for (const file of roomsPictureRef.value.files) {
-    roomAddImageUrl.value.push(URL.createObjectURL(file))
+    const url = URL.createObjectURL(file)
+    roomAddImageUrl.value.push(url)
+    newDownloadedImages.value[file.name] = url
   }
+  selectedImages.value = [...selectedImages.value, Array.from(roomsPictureRef.value.files)]
 }
 
 async function roomsUpdateImageChange() {
@@ -39,6 +49,7 @@ async function roomsUpdateImageChange() {
     roomUpdateImageUrl.value.push(url)
     newDownloadedImages.value[file.name] = url
   }
+  selectedImages.value = [...selectedImages.value, Array.from(roomsEditPictureRef.value.files)]
 }
 
 async function onRoomEditClick(room) {
@@ -49,7 +60,9 @@ async function onRoomEditClick(room) {
 }
 
 function closeAddModal() {
+  newDownloadedImages.value = {}
   roomAddImageUrl.value = []
+  if (selectedImages.value) selectedImages.value = ''
   if (roomsPictureRef.value) roomsPictureRef.value.value = ''
   roomToAdd.value = { number: '', description: '', price: '' }
 }
@@ -58,16 +71,16 @@ function closeUpdateModal() {
   newDownloadedImages.value = {}
   currentImage.value = []
   roomUpdateImageUrl.value = []
+  if (selectedImages.value) selectedImages.value = ''
   if (roomsEditPictureRef.value) roomsEditPictureRef.value.value = ''
   roomToEdit.value = { number: '', description: '', price: '' }
 }
 
 async function onUpdateRoom() {
   const formData = new FormData()
-
-
-  if (roomsEditPictureRef.value.files) {
-    for (const file of roomsEditPictureRef.value.files) {
+  if (selectedImages.value) {
+    const filesArray = toRaw(selectedImages.value).flatMap(item => item.files ?? item)
+    for (const file of filesArray) {
       const name = file.name
       const currentImage = newDownloadedImages.value[name];
 
@@ -99,16 +112,19 @@ async function onRoomAdd() {
   formData.set('description', roomToAdd.value.description)
   formData.set('price', roomToAdd.value.price)
 
-  for (const file of roomsPictureRef.value.files) {
-    formData.append('images', file)
+  if (selectedImages.value) {
+    const filesArray = toRaw(selectedImages.value).flatMap(item => item.files ?? item)
+    for (const file of filesArray) {
+      const name = file.name
+      const currentImage = newDownloadedImages.value[name];
+
+      if (roomAddImageUrl.value.includes(currentImage)) {
+        formData.append('images', file)
+      }
+    }
   }
 
-  await axios.post("/api/rooms/", formData, {
-    headers:
-    {
-      'Content-Type': 'multipart/form-data'
-    }
-  });
+  await axios.post("/api/rooms/", formData);
   closeAddModal()
   await fetchRooms();
 }
@@ -264,7 +280,14 @@ async function onRemoveClick(room) {
             </div>
             <div class="row output-images">
               <div v-for="image in roomAddImageUrl">
-                <img :src="image" style="max-height: 60px">
+                <div style="position:relative">
+                  <img :src="image" style="max-height: 60px">
+                  <button class="btn btn-danger" style="position:absolute; padding: 0;width: 20px;height: 20px;  border-radius: 0; top: 0;  left: 0;  transform: translate(0%, 0%);  
+                    -ms-transform: translate(0%, 0%);"
+                    @click="roomAddImageUrl.splice(roomAddImageUrl.indexOf(image), 1);">
+                    <i class="bi bi-x" style="display: flex; justify-content: center; align-items: center;"></i>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

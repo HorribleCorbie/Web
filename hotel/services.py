@@ -1,10 +1,8 @@
 from rest_framework.exceptions import ValidationError
 from .models import Accomodattion, Profile, Provision
 
-# в отдельные классы
-# через нижнее подчеркивание функции
-# модальное окно на удаление
 class ServiceAccomodation:
+    
     def create_accomodattiom(data):
         in_date= data["in_date"]
         out_date= data["out_date"]

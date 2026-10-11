@@ -16,6 +16,16 @@ const serviceUpdatePicture = ref()
 const serviceUpdatePictureURL = ref()
 const serviceAddPictureURL = ref()
 
+window.onload = function () {
+  var serviceModel = document.getElementById('serviceModel')
+
+  serviceModel.addEventListener('hidden.bs.modal', function () {
+    serviceToAdd.value = {}
+    serviceAddPictureURL.value = ''
+    serviceAddPicture.value.value = ''
+  })
+}
+
 async function serviceAddPictureChange() {
   serviceAddPictureURL.value = URL.createObjectURL(serviceAddPicture.value.files[0])
 }
