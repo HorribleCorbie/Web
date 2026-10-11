@@ -59,6 +59,12 @@ class AccomodattionViewset(mixins.CreateModelMixin,
                            GenericViewSet):
     queryset= Accomodattion.objects.all()
     serializer_class = AccomodattionSerializer
+    # def get_queryset(self):
+    #     qs = super().get_queryset()
+        
+    #     qs = qs.filter(user=self.request.user)
+
+    #     return qs
 
 class ProvisionViewset(mixins.CreateModelMixin, 
                        mixins.DestroyModelMixin, 

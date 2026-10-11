@@ -43,13 +43,48 @@
             </ul>
           </li>
         </ul>
+
+        <ul class="navbar-nav">
+          <li  v-if="authStore.isAuthenticated">
+            <a class="nav-link"  @click="logout"> Выйти из аккаунта </a>
+          </li>
+        </ul>
+        
       </div>
     </nav>
   </div>
+
+
 
   <div class="container">
     <router-view />
   </div>
 </template>
 
-<style scoped></style>
+<script>
+import { useAuthStore } from '@/stores/auth.js'
+import { useRouter } from 'vue-router'
+
+export default {
+  setup() {
+    const authStore = useAuthStore()
+    const router = useRouter()
+
+    return {
+      authStore,
+      router
+    }
+  },
+  methods: {
+    async logout() {
+      try {
+        await this.authStore.logout(this.$router)
+      } catch (error) {
+        console.error(error)
+      }
+    }
+  },
+  async mounted() {
+    await this.authStore.fetchUser()
+  }
+} </script>

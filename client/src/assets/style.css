@@ -12,6 +12,14 @@
 
 }
 
+.register {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    margin: 10px auto;
+}
+
 h1 {
     text-align: center;
 }

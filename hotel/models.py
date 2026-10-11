@@ -25,7 +25,6 @@ class Room(models.Model):
     description = models.TextField("Описание")
     price = models.FloatField("Цена")
 
-
     class Meta:
         verbose_name="Номер"
         verbose_name_plural = "Номера"
@@ -47,8 +46,11 @@ class Accomodattion(models.Model):
     price = models.FloatField("Сумма за проживание")
 
     room = models.ForeignKey("hotel.Room", on_delete=models.CASCADE, null=True)
-    client = models.ForeignKey("auth.User", on_delete=models.CASCADE, null=True, related_name="client_user")
-    employee = models.ForeignKey("auth.User", on_delete=models.CASCADE, null=True, related_name="employee_user")
+    client = models.ForeignKey("auth.User", verbose_name="Клиент", on_delete=models.CASCADE, null=True, related_name="client_user")
+    employee = models.ForeignKey("auth.User", verbose_name="Сотрудник", on_delete=models.CASCADE, null=True, related_name="employee_user")
+    
+    # user = models. ForeignKey("auth.User", verbose_name="Автор записи", on_delete=models.CASCADE, null=True, related_name="author_user")
+    
     class Meta:
             verbose_name="Проживание"
             verbose_name_plural = "Проживания"
