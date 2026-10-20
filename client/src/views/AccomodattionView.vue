@@ -2,19 +2,30 @@
 import axios from 'axios';
 import { computed, onBeforeMount, ref, } from 'vue';
 import Cookies from 'js-cookie';
+import SearchFilters from '@/components/SearchFilters.vue'
+import { storeToRefs } from 'pinia';
+import useProfileStore from '../stores/profileStore';
 
 const accomodattionToAdd = ref({})
 const accomodattionToEdit = ref({})
 const selectedAccomodattion = ref([])
 
 const accomodattions = ref([])
+const filteredAccommodations = ref([])
 const rooms = ref([])
 const clients = ref([])
-const employees = ref([])
 
 let loading = ref(false)
 let isError = ref(false)
 let textOfError = ref()
+
+const profileStore = useProfileStore();
+const {
+    isSuperUser,
+    id
+} = storeToRefs(profileStore)
+
+
 
 function roomLabel(id) {
     const r = rooms.value.find(x => x.id === id);
@@ -36,7 +47,7 @@ const nights = computed(() => {
     const { in_date, out_date } = source.value || {};
     if (!in_date || !out_date) return 0;
     const diff = Math.round((new Date(out_date) - new Date(in_date)) / 86400000);
-    const result = diff + 1; 
+    const result = diff + 1;
     return Number.isFinite(result) && result > 0 ? result : 0;
 });
 
@@ -74,6 +85,7 @@ async function onAccomodattionAdd() {
     const payload = {
         ...accomodattionToAdd.value,
         price: totalPrice.value,
+        user: id.value
     };
     try {
         await axios.post("/api/accomodattion/", payload);
@@ -97,10 +109,6 @@ async function fetchRooms() {
     rooms.value = r.data;
 }
 
-async function fetchEmployees() {
-    const r = await axios.get("/api/users/?role=1")
-    employees.value = r.data;
-}
 
 async function fetchClients() {
     const r = await axios.get("/api/users/?role=2")
@@ -112,7 +120,6 @@ onBeforeMount(async () => {
     await fetchAccomodattion()
     await fetchRooms()
     await fetchClients()
-    await fetchEmployees()
 })
 
 async function onRemoveClick(accomodattion) {
@@ -131,7 +138,12 @@ async function onRemoveClick(accomodattion) {
                 Добавить проживание
             </button>
             <div v-if="loading">Данные загружаются, подождите...</div>
-            <div v-for="accomodattion in accomodattions">
+            <div v-if="!loading && accomodattions.length==0">У вас нет проживаний</div>
+            <div v-if="accomodattions != null && isSuperUser">
+                <search-filters :items="accomodattions"
+                    @update:filtered-items="filteredAccommodations = $event"></search-filters>
+            </div>
+            <div v-for="accomodattion in (isSuperUser ? filteredAccommodations : accomodattions)">
                 <div class="list">
                     <div> Номер {{ roomLabel(accomodattion.room) }}, даты:
                         {{ accomodattion.in_date }}:{{ accomodattion.out_date }},
@@ -198,15 +210,7 @@ async function onRemoveClick(accomodattion) {
                                     <select class="form-select" v-model="accomodattionToEdit.client" required>
                                         <option :value="c.id" v-for="c in clients">{{ c.username }}</option>
                                     </select>
-                                    <label for="floatingInput">Клиенты</label>
-                                </div>
-                            </div>
-                            <div class="col">
-                                <div class="form-floating">
-                                    <select class="form-select" v-model="accomodattionToEdit.employee" required>
-                                        <option :value="e.id" v-for="e in employees">{{ e.username }}</option>
-                                    </select>
-                                    <label for="floatingInput">Сотрудник</label>
+                                    <label for="floatingInput">Клиент</label>
                                 </div>
                             </div>
                         </div>
@@ -273,15 +277,7 @@ async function onRemoveClick(accomodattion) {
                                     <select class="form-select" v-model="accomodattionToAdd.client" required>
                                         <option :value="c.id" v-for="c in clients">{{ c.username }}</option>
                                     </select>
-                                    <label for="floatingInput">Клиенты</label>
-                                </div>
-                            </div>
-                            <div class="col">
-                                <div class="form-floating">
-                                    <select class="form-select" v-model="accomodattionToAdd.employee" required>
-                                        <option :value="e.id" v-for="e in employees">{{ e.username }}</option>
-                                    </select>
-                                    <label for="floatingInput">Сотрудник</label>
+                                    <label for="floatingInput">Клиент</label>
                                 </div>
                             </div>
                         </div>
@@ -329,7 +325,7 @@ async function onRemoveClick(accomodattion) {
                         <div class="row">
                             <div class="col">
                                 Вы точно хотите удалить проживание с {{ selectedAccomodattion.in_date }} по {{
-                                selectedAccomodattion.out_date }} в {{ selectedAccomodattion.room }}?
+                                    selectedAccomodattion.out_date }} в {{ selectedAccomodattion.room }}?
                             </div>
                         </div>
                     </div>

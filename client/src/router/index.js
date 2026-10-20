@@ -5,10 +5,12 @@ import ProvisionView from '@/views/ProvisionView.vue'
 import LoginView from '@/views/LoginView.vue'
 import RegisterView from '@/views/RegisterView.vue'
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '@/stores/auth.js'
+import profileStore from '@/stores/profileStore.js';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
+  linkActiveClass: 'active',
+  linkExactActiveClass: 'active-exact',
   routes: [
     {
       path: "/",
@@ -47,12 +49,19 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach(async (to) => {
-  const authStore = useAuthStore()
+let authChecked = false;
 
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    return { name: 'login' }
-  }
-})
+router.beforeEach(async (to) => {
+    const authStore = profileStore();
+
+    if (!authChecked) {
+        await authStore.fetchMe();
+        authChecked = true;
+    }
+
+    if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+        return { name: 'login' };
+    }
+});
 
 export default router

@@ -2,6 +2,19 @@
 import axios from 'axios';
 import { computed, onBeforeMount, ref, } from 'vue';
 import Cookies from 'js-cookie';
+import SearchFilters from '@/components/SearchFilters.vue'
+
+import { storeToRefs } from 'pinia';
+import useProfileStore from '../stores/profileStore';
+
+const filteredProvisions = ref([])
+
+const profileStore = useProfileStore();
+const {
+    isSuperUser,
+    id
+} = storeToRefs(profileStore)
+
 
 const provisionToAdd = ref({});
 const provisionToEdit = ref({});
@@ -81,6 +94,7 @@ async function onProvisionAdd() {
     const payload = {
         ...provisionToAdd.value,
         price: totalPrice.value,
+        user: id.value
     };
     try {
         await axios.post("/api/provision/", payload);
@@ -147,7 +161,12 @@ async function onRemoveClick(provision) {
                 Добавить оказание услуги
             </button>
             <div v-if="loading">Данные загружаются, подождите...</div>
-            <div v-for="provision in provisions">
+            <div v-if="!loading && provisions.length==0">У вас нет оказаний услуг</div>
+            <div v-if="provisions != null && isSuperUser">
+                <search-filters :items="provisions"
+                    @update:filtered-items="filteredProvisions = $event"></search-filters>
+            </div>
+            <div v-for="provision in (isSuperUser ? filteredProvisions : provisions)">
                 <div class="list">
                     <div> Услуга: {{ findService(provision.service) }}. {{ accomodattionLabel(provision.accomodattion)
                         }}</div>

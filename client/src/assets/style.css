@@ -43,6 +43,21 @@ h1 {
     align-items: center;
 }
 
+.search-div{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.search{
+    background-color: white;
+    border-radius: 15px;
+    padding: 10px;
+    border: 1px solid silver;
+    width: 100%;
+    align-items: center;
+}
+
 .modal-mask {
     position: fixed;
     z-index: 9998;

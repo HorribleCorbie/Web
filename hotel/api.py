@@ -1,6 +1,12 @@
 from rest_framework import mixins
 from django.contrib.auth.models import User
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
 from rest_framework.viewsets import GenericViewSet
+from django.contrib.auth import logout as django_logout
+from django.contrib.auth import login as django_login
+from django.contrib.auth import authenticate
 
 from hotel.models import *
 from hotel.serializers import *
@@ -59,12 +65,17 @@ class AccomodattionViewset(mixins.CreateModelMixin,
                            GenericViewSet):
     queryset= Accomodattion.objects.all()
     serializer_class = AccomodattionSerializer
-    # def get_queryset(self):
-    #     qs = super().get_queryset()
-        
-    #     qs = qs.filter(user=self.request.user)
+    
+    def get_queryset(self):
+        if self.request.user.is_superuser:
+            qs = super().get_queryset()
+            return qs
+        else:
+            qs = super().get_queryset()
+            
+            qs = qs.filter(user=self.request.user)
 
-    #     return qs
+            return qs
 
 class ProvisionViewset(mixins.CreateModelMixin, 
                        mixins.DestroyModelMixin, 
@@ -74,6 +85,17 @@ class ProvisionViewset(mixins.CreateModelMixin,
                        GenericViewSet):
     queryset= Provision.objects.all()
     serializer_class = ProvisionSerializer
+    
+    def get_queryset(self):
+        if self.request.user.is_superuser:
+            qs = super().get_queryset()
+            return qs
+        else:
+            qs = super().get_queryset()
+            
+            qs = qs.filter(user=self.request.user)
+
+            return qs
 
 class UserViewset(mixins.CreateModelMixin, 
                        mixins.DestroyModelMixin, 
@@ -92,3 +114,78 @@ class UserViewset(mixins.CreateModelMixin,
             queryset = queryset.filter(profile__role=role)
 
         return queryset
+    
+class ProfileViewSet(GenericViewSet):
+    queryset = User.objects.all()
+
+    @action(detail=False, url_path="me", methods=['GET'])
+    def get_me(self, request, *args, **kwargs):
+        data = {
+            'is_authenticated': self.request.user.is_authenticated,
+            'is_superuser': self.request.user.is_superuser
+        }
+
+        if self.request.user.is_authenticated:
+            data.update({
+                "username": self.request.user.username,
+                "id": self.request.user.id,
+                "role": self.request.user.profile.role,
+            })
+
+        return Response(data=data)
+
+    @action(detail=False, url_path="logout", methods=['POST'])
+    def logout(self, *args, **kwargs):
+        django_logout(self.request)
+
+        return Response()
+
+    @action(detail=False, url_path="login", methods=['POST'])
+    def login(self, *args, **kwargs):
+        username = self.request.data['username']
+        password = self.request.data['password']
+
+        success = False
+        status_code = 403
+        
+        user = authenticate(username=username, password=password)
+        if user:
+            success = True
+            status_code = 200
+            django_login(self.request, user)
+
+        return Response({
+            'success': success
+        }, status=status_code)
+
+    @action(detail=False, url_path="register", methods=['POST'])
+    def register(self, *args, **kwargs):
+        username = self.request.data['username']
+        password = self.request.data['password']
+        
+        success = False
+        status_code = 403
+        
+        if User.objects.filter(username=username).exists():
+            return  Response({
+            'success': False, "error": "Такой никнейм уже занят"
+        }, status=status_code)
+        
+        user = User.objects.create_user(
+            username=username,
+            password=password
+        )
+        
+        if user:
+            success = True
+            status_code = 200
+            django_login(self.request, user)
+
+        return Response({
+            'success': success
+        }, status=status_code)
+        
+
+    # @action(detail=False, url_path="activate_user", methods=['POST'])
+    # def activate_user(self, *args, **kwargs):
+    #     pass

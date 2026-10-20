@@ -32,14 +32,10 @@ router.register("accomodattion", AccomodattionViewset, basename="accomodattion")
 router.register("provision", ProvisionViewset, basename="provision")
 router.register("users", UserViewset, basename="users")
 router.register("image", ImageViewset, basename="image")
+router.register('profile', ProfileViewSet, 'profile')
 
 urlpatterns = [
     path('', views.ShowRoomsView.as_view()),
     path('admin/', admin.site.urls),
-    path('api/user/', views.user, name='user'),
-    path('api/login/', views.login_view, name='login'),
-    path('api/logout/', views.logout_view, name='logout'),
-    path('api/register/', views.register, name='register'),
-    path('api/set-csrf-token/', views.set_csrf_token, name='set_csrf_token'),
     path('api/', include(router.urls)),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

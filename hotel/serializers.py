@@ -38,8 +38,8 @@ class AccomodattionSerializer (serializers. ModelSerializer):
         fields = '__all__'
 
     def create(self, validated_data):
-        # if 'request' in self.context:
-        #     validated_data['user'] = self.context['request'].user
+        if 'request' in self.context:
+            validated_data['user'] = self.context['request'].user
         return ServiceAccomodation.create_accomodattiom(validated_data)
 
     def update(self, instance, validated_data):

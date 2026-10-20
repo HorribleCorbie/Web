@@ -8,16 +8,13 @@ class ServiceAccomodation:
         out_date= data["out_date"]
         client = data["client"]
         room = data["room"]
-        employee = data["employee"]
+        user = data["user"]
 
         if (in_date>out_date):
             raise ValidationError("Дата въезда не может быть больше выезда.")
 
         if (client.profile.role != Profile.Role.client):
             raise ValidationError("Клиент должен быть зарегестрирован.")
-
-        if (employee.profile.role != Profile.Role.employee):
-                raise ValidationError("Сотрудник должен быть зарегестрирован.")
 
         price = ((out_date-in_date).days+1)*room.price
 
@@ -31,10 +28,10 @@ class ServiceAccomodation:
         return Accomodattion.objects.create(
             room=room,
             client=client,
-            employee=employee,
             in_date=in_date,
             out_date=out_date,
-            price=price
+            price=price,
+            user=user
         )
 
     def update_accomodattiom(instance, data):
@@ -42,16 +39,13 @@ class ServiceAccomodation:
         out_date= data["out_date"]
         client = data["client"]
         room = data["room"]
-        employee = data["employee"]
-
+        user = data["user"]
+        
         if (in_date>out_date):
             raise ValidationError("Дата въезда не может быть больше выезда.")
 
         if (client.profile.role != Profile.Role.client):
             raise ValidationError("Клиент должен быть зарегестрирован.")
-
-        if (employee.profile.role != Profile.Role.employee):
-                raise ValidationError("Сотрудник должен быть зарегестрирован.")
 
         price = ((out_date-in_date).days+1)*room.price
 
@@ -78,7 +72,8 @@ class ServiceProvision:
         accomodattion = data["accomodattion"]
         service = data["service"]
         quantity = data["quantity"]
-
+        user = data["user"]
+        
         if (employee.profile.role != Profile.Role.employee):
             raise ValidationError("Сотрудник должен быть зарегестрирован.")
 
@@ -93,7 +88,8 @@ class ServiceProvision:
             accomodattion=accomodattion,
             employee=employee,
             quantity=quantity,
-            price=price
+            price=price,
+            user=user
             )
 
     def update_provision(instance, data):

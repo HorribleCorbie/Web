@@ -9,7 +9,8 @@ class RoomAdmin(admin.ModelAdmin):
 
 @admin.register(Accomodattion)
 class AccomodattionAdmin(admin.ModelAdmin):
-    list_display=['id', 'in_date', 'out_date', 'price', 'room', 'client']
+    list_display=['id', 'in_date', 'out_date', 'price', 'room', 'client', 'user']
+    list_filter = ['user']
 
 @admin.register(Service)
 class ServiceAdmin(admin.ModelAdmin):
