@@ -16,6 +16,11 @@ class ServiceSerializer (serializers. ModelSerializer):
 class RoomSerializer (serializers. ModelSerializer):
     picture = ImageSerializer(many=True, read_only=True)
     
+    def create(self, validated_data):
+        if 'request' in self.context:
+            validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)
+    
     class Meta:
         model = Room
         fields = '__all__'
@@ -26,6 +31,8 @@ class ProvisionSerializer (serializers. ModelSerializer):
         fields = '__all__'
 
     def create(self, validated_data):
+        if 'request' in self.context:
+            validated_data['user'] = self.context['request'].user
         return ServiceProvision.create_provision(validated_data)
 
     def update(self, instance, validated_data):
@@ -47,6 +54,10 @@ class AccomodattionSerializer (serializers. ModelSerializer):
 
 class UserSerializer (serializers. ModelSerializer):
     role = serializers.IntegerField(source='profile.role', read_only=True)
+    def create(self, validated_data):
+        if 'request' in self.context:
+            validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)
 
     class Meta:
         model = User

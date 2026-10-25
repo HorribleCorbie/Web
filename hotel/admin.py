@@ -18,7 +18,8 @@ class ServiceAdmin(admin.ModelAdmin):
 
 @admin.register(Provision)
 class ProvisionAdmin(admin.ModelAdmin):
-    list_display=['id', 'quantity', 'price']
+    list_display=['id', 'quantity', 'price', 'user']
+    list_filter = ['user']
 
 @admin.register(Image)
 class ImageAdmin(admin.ModelAdmin):

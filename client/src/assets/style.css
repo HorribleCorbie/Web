@@ -43,6 +43,12 @@ h1 {
     align-items: center;
 }
 
+.buttons-div{
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+}
+
 .search-div{
     display: flex;
     flex-direction: column;

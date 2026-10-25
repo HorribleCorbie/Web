@@ -1,7 +1,26 @@
 <script setup>
 import axios from 'axios';
-import { computed, onBeforeMount, ref } from 'vue';
+import { onBeforeMount, ref, onMounted } from 'vue';
 import Cookies from 'js-cookie';
+import SearchFilters from '@/components/SearchFilters.vue'
+import { storeToRefs } from 'pinia';
+import useProfileStore from '../stores/profileStore';
+import CreateProvision from '@/components/CreateProvision.vue';
+
+let provisionModal = ref(false)
+
+const filteredService = ref([])
+
+const profileStore = useProfileStore();
+const {
+  isSuperUser,
+  id,
+  thisCanBeAddAndChanged
+} = storeToRefs(profileStore)
+
+const activeAccomodattions = ref([])
+const clients = ref([])
+const employees = ref([])
 
 const services = ref([])
 let loading = ref(false)
@@ -16,15 +35,42 @@ const serviceUpdatePicture = ref()
 const serviceUpdatePictureURL = ref()
 const serviceAddPictureURL = ref()
 
-window.onload = function () {
-  var serviceModel = document.getElementById('serviceModel')
+function clearServiceForm() {
+  serviceToAdd.value = {
+    name: '',
+    price: ''
+  }
 
-  serviceModel.addEventListener('hidden.bs.modal', function () {
-    serviceToAdd.value = {}
-    serviceAddPictureURL.value = ''
+  serviceAddPictureURL.value = ''
+
+  if (serviceAddPicture.value) {
     serviceAddPicture.value.value = ''
-  })
+  }
 }
+
+function clearEditServiceForm() {
+  serviceToEdit.value = {
+    name: '',
+    price: ''
+  }
+
+  serviceUpdatePictureURL.value = ''
+
+  if (serviceUpdatePicture.value) {
+    serviceUpdatePicture.value.value = ''
+  }
+}
+
+
+onMounted(() => {
+  const serviceModel = document.getElementById('serviceModel')
+
+  serviceModel?.addEventListener('hidden.bs.modal', clearServiceForm)
+
+  const editServiceModel = document.getElementById('editServiceModel')
+
+  editServiceModel?.addEventListener('hidden.bs.modal', clearEditServiceForm)
+})
 
 async function serviceAddPictureChange() {
   serviceAddPictureURL.value = URL.createObjectURL(serviceAddPicture.value.files[0])
@@ -48,9 +94,7 @@ async function onUpdateService() {
   formData.set('price', serviceToEdit.value.price)
 
   await axios.put(`/api/service/${serviceToEdit.value.id}/`, formData);
-  serviceToEdit.value = {}
-  serviceUpdatePicture.value.value = ''
-  serviceAddPictureURL.value = undefined
+  clearEditServiceForm()
   await fetchServices();
 }
 
@@ -67,9 +111,7 @@ async function onServiceAdd() {
     }
   }
   );
-  serviceToAdd.value = {}
-  serviceAddPicture.value.value = ''
-  serviceAddPictureURL.value = undefined
+  clearServiceForm()
   await fetchServices();
 }
 
@@ -80,10 +122,30 @@ async function fetchServices() {
   loading.value = false
 }
 
+async function fetchAccomodattion() {
+    const s = await axios.get("/api/accomodattion/")
+    const today = new Date().toISOString().split('T')[0];
+    activeAccomodattions.value = s.data.filter(x => x.in_date <= today && x.out_date >= today)
+}
+
+async function fetchEmployees() {
+    const r = await axios.get("/api/users/?role=1")
+    employees.value = r.data;
+}
+
+async function fetchClients() {
+    const r = await axios.get("/api/users/?role=2")
+    clients.value = r.data;
+}
+
+
 
 onBeforeMount(async () => {
   axios.defaults.headers.common['X-CSRFToken'] = Cookies.get("csrftoken");
   await fetchServices()
+  await fetchAccomodattion()
+  await fetchEmployees()
+  await fetchClients()
 })
 
 async function onRemoveClick(service) {
@@ -99,27 +161,43 @@ async function onRemoveClick(service) {
     <h1>Услуги</h1>
 
     <div class="objects">
-      <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#serviceModel">
+      <button type="button" v-if="thisCanBeAddAndChanged" class="btn btn-warning" data-bs-toggle="modal"
+        data-bs-target="#serviceModel">
         Добавить услугу
       </button>
       <div v-if="loading">Данные загружаются, подождите...</div>
-      <div v-for="service in services">
+      <div v-if="!loading && services.length == 0">У вас нет услуг</div>
+      <div v-if="services != null && isSuperUser">
+        <search-filters :items="services" @update:filtered-items="filteredService = $event"></search-filters>
+      </div>
+      <div v-for="service in (isSuperUser ? filteredService : services)">
         <div class="list">
           <div> {{ service.name }}</div>
           <div v-show="service.picture"><img :src="service.picture" type="button"
               @click="selectedImage = service.picture" data-bs-toggle="modal" data-bs-target="#imageModal"
-              style="max-height: 60px;"></div>
-          <button class="btn btn-success" @click="onServiceEditClick(service)" data-bs-toggle="modal"
-            data-bs-target="#editServiceModal">
-            <i class="bi bi-pen-fill"> </i>
-          </button>
-          <button class="btn btn-danger" @click="selectedService = service" data-bs-toggle="modal"
-            data-bs-target="#deleteModal">
-            <i class="bi bi-x"></i>
-          </button>
+              style="max-height: 60px;">
+          </div>
+          <div class="buttons-div">
+            <div class="buttons-div" v-if="(service.user === id || isSuperUser) && thisCanBeAddAndChanged">
+              <button class="btn btn-success" @click="onServiceEditClick(service)" data-bs-toggle="modal"
+                data-bs-target="#editServiceModal">
+                <i class="bi bi-pen-fill"> </i>
+              </button>
+              <button class="btn btn-danger" @click="selectedService = service" data-bs-toggle="modal"
+                data-bs-target="#deleteModal">
+                <i class="bi bi-x"></i>
+              </button>
+            </div>
+            <button class="btn btn-warning" @click="selectedService = service; provisionModal = true">
+              <i class="bi bi-plus-circle"></i>
+            </button>
+          </div>
         </div>
       </div>
     </div>
+
+    <CreateProvision v-model="provisionModal" :services="[selectedService]" :accomodattions="activeAccomodattions"
+      :clients="(thisCanBeAddAndChanged) ? clients : [{ id: id, username: userName }]" :employees="thisCanBeAddAndChanged ? employees : undefined" @success="fetchProvision" />
 
     <div class="modal fade" id="editServiceModal" tabindex="-1">
       <div class="modal-dialog">

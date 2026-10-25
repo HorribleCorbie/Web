@@ -2,13 +2,8 @@
 import useProfileStore from '@/stores/profileStore';
 
 import {ref} from 'vue';
-import { storeToRefs } from 'pinia';
 
 const profileStore = useProfileStore();
-const {
-    isAuthenticated,
-    userName
-} = storeToRefs(profileStore)
 
 
 const username = ref("")
@@ -46,8 +41,8 @@ async function onLoginClick() {
             
         </form>
         <div class="register">
-            <span>У вас нет учетной записи?</span>
-            <a type="button" class="btn btn-info" href="/register"> Зарегестрируйтесь</a>
+            <span>У вас нет учетной записи? </span>
+            <a type="button" class="btn btn-info" href="/register">Зарегестрируйтесь</a>
         </div>
     </div>
 </template>

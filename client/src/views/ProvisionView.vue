@@ -3,18 +3,21 @@ import axios from 'axios';
 import { computed, onBeforeMount, ref, } from 'vue';
 import Cookies from 'js-cookie';
 import SearchFilters from '@/components/SearchFilters.vue'
-
+import ErrorModal from '@/components/ErrorModal.vue';
 import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
+import CreateProvision from '@/components/CreateProvision.vue';
 
 const filteredProvisions = ref([])
 
 const profileStore = useProfileStore();
 const {
     isSuperUser,
-    id
+    id,
+    thisCanBeAddAndChanged
 } = storeToRefs(profileStore)
 
+let provisionModal = ref(false)
 
 const provisionToAdd = ref({});
 const provisionToEdit = ref({});
@@ -22,6 +25,7 @@ const selectedProvision = ref({})
 
 const provisions = ref([])
 const accomodattions = ref([])
+const activeAccomodattions = ref([])
 const clients = ref([])
 const employees = ref([])
 const services = ref([])
@@ -78,34 +82,34 @@ async function onUpdateProvision() {
     const payload = {
         ...provisionToEdit.value,
         price: totalPrice.value,
+        user: id.value
     };
     try {
         await axios.put(`/api/provision/${provisionToEdit.value.id}/`, payload);
         await fetchProvision();
         provisionToEdit.value = {}
     } catch (error) {
-        console.log(error.response?.data);
-        isError.value = true
-        textOfError.value = error.response.data[0]
-    }
-}
+        isError.value = true;
+        const responseData = error.response?.data
+        if (Array.isArray(responseData)) {
+            textOfError.value = responseData.join('\n')
+        } else if (typeof responseData === 'object') {
+            const errorMessages = [];
 
-async function onProvisionAdd() {
-    const payload = {
-        ...provisionToAdd.value,
-        price: totalPrice.value,
-        user: id.value
-    };
-    try {
-        await axios.post("/api/provision/", payload);
-        await fetchProvision();
-        provisionToAdd.value = {}
-    } catch (error) {
-        console.log(error.response?.data);
-        isError.value = true
-        textOfError.value = error.response.data[0]
-    }
+            for (const [field, messages] of Object.entries(responseData)) {
 
+                const fieldMessages = Array.isArray(messages) ? messages.join(', ') : messages;
+
+                errorMessages.push(`${field}: ${fieldMessages}`);
+            }
+
+            textOfError.value = errorMessages.join('\n');
+        } else if (typeof responseData === 'string') {
+            textOfError.value = allErrors
+        } else {
+            textOfError.value = error.message || 'Неизвестная ошибка';
+        }
+    }
 }
 
 async function fetchProvision() {
@@ -123,6 +127,10 @@ async function fetchServices() {
 async function fetchAccomodattion() {
     const s = await axios.get("/api/accomodattion/")
     accomodattions.value = s.data;
+
+    const today = new Date().toISOString().split('T')[0];
+
+    activeAccomodattions.value = accomodattions.value.filter(x => x.in_date <= today && x.out_date >= today)
 }
 
 async function fetchEmployees() {
@@ -157,11 +165,11 @@ async function onRemoveClick(provision) {
         <h1>Оказание услуг</h1>
 
         <div class="objects">
-            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#provisionModel">
+            <button type="button" class="btn btn-warning" @click="provisionModal=true">
                 Добавить оказание услуги
             </button>
             <div v-if="loading">Данные загружаются, подождите...</div>
-            <div v-if="!loading && provisions.length==0">У вас нет оказаний услуг</div>
+            <div v-if="!loading && provisions.length == 0">У вас нет оказанных услуг</div>
             <div v-if="provisions != null && isSuperUser">
                 <search-filters :items="provisions"
                     @update:filtered-items="filteredProvisions = $event"></search-filters>
@@ -170,14 +178,17 @@ async function onRemoveClick(provision) {
                 <div class="list">
                     <div> Услуга: {{ findService(provision.service) }}. {{ accomodattionLabel(provision.accomodattion)
                         }}</div>
-                    <button class="btn btn-success" @click="onProvisionEditClick(provision)" data-bs-toggle="modal"
-                        data-bs-target="#editProvisionModal">
-                        <i class="bi bi-pen-fill"> </i>
-                    </button>
-                    <button class="btn btn-danger" @click="selectedProvision = provision" data-bs-toggle="modal"
-                        data-bs-target="#deleteModal">
-                        <i class="bi bi-x"></i>
-                    </button>
+                    <div class="buttons-div" v-if="(provision.user === id || isSuperUser) && thisCanBeAddAndChanged">
+                        <button class="btn btn-success" @click="onProvisionEditClick(provision)" data-bs-toggle="modal"
+                            data-bs-target="#editProvisionModal">
+                            <i class="bi bi-pen-fill"> </i>
+                        </button>
+                        <button class="btn btn-danger" @click="selectedProvision = provision" data-bs-toggle="modal"
+                            data-bs-target="#deleteModal">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -248,88 +259,10 @@ async function onRemoveClick(provision) {
             </div>
         </div>
 
+        <CreateProvision v-model="provisionModal" :services="services" :accomodattions="activeAccomodattions"
+            :clients="clients" :employees="thisCanBeAddAndChanged?employees:undefined" @success="fetchProvision" />
 
-        <div class="modal fade" id="provisionModel" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h1 class="modal-title fs-5">
-                            Изменение оказания услуги
-                        </h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body objects">
-                        <div class="row">
-                            <div class="col">
-                                <div class="form-floating">
-                                    <select class="form-select" v-model="provisionToAdd.service" required>
-                                        <option :value="s.id" v-for="s in services">{{ s.name }}</option>
-                                    </select>
-                                    <label for="floatingInput">Услуга</label>
-                                </div>
-                            </div>
-                            <div class="col">
-                                <div class="form-floating">
-                                    <input type="number" class="form-control" :value="totalPrice" readonly />
-                                    <label for="floatingInput">Цена</label>
-                                </div>
-                            </div>
-                            <div class="col">
-                                <div class="form-floating">
-                                    <input type="number" class="form-control" min="1" max="100"
-                                        v-model="provisionToAdd.quantity" required />
-                                    <label for="floatingInput">Количество</label>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col">
-                                <div class="form-floating">
-                                    <select class="form-select" v-model="provisionToAdd.accomodattion" required>
-                                        <option :value="a.id" v-for="a in accomodattions">{{ accomodattionLabel(a.id) }}
-                                        </option>
-                                    </select>
-                                    <label for="floatingInput">Проживание</label>
-                                </div>
-                            </div>
-                            <div class="col">
-                                <div class="form-floating">
-                                    <select class="form-select" v-model="provisionToAdd.employee" required>
-                                        <option :value="e.id" v-for="e in employees">{{ e.username }}</option>
-                                    </select>
-                                    <label for="floatingInput">Сотрудник</label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal">
-                            Закрыть
-                        </button>
-                        <button data-bs-dismiss="modal" type="button" class="btn btn-success" @click="onProvisionAdd">
-                            Добавить
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <transition name="modal" v-if="isError">
-            <div class="modal-mask">
-                <div class="modal-wrapper">
-                    <div class="modal-container">
-                        <div>
-                            {{ textOfError }}
-                        </div>
-                        <div>
-                            <button class="modal-default-button" @click="isError = false">
-                                OK
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </transition>
+        <ErrorModal v-if="isError" v-model="isError" :textOfError="textOfError" />
 
         <div class="modal fade" id="deleteModal" tabindex="-1">
             <div class="modal-dialog">
@@ -343,7 +276,8 @@ async function onRemoveClick(provision) {
                     <div class="modal-body objects ">
                         <div class="row">
                             <div class="col">
-                                Вы точно хотите удалить оказания услуги {{ findService(selectedProvision.service) }} для {{
+                                Вы точно хотите удалить оказания услуги {{ findService(selectedProvision.service) }} для
+                                {{
                                     findCLient(selectedProvision.accomodattion) }}?
                             </div>
                         </div>

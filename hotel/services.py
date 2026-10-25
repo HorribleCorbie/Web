@@ -25,6 +25,13 @@ class ServiceAccomodation:
         if (existing.exists()):
             raise ValidationError("Уже есть бронь на эти даты.")
 
+        existing = Accomodattion.objects.filter(client=client,
+                                                in_date__lte=out_date,
+                                                out_date__gte=in_date)
+        
+        if (existing.exists()):
+            raise ValidationError("Клиент уже проживает в отеле.")
+
         return Accomodattion.objects.create(
             room=room,
             client=client,
@@ -56,6 +63,13 @@ class ServiceAccomodation:
         if (existing.exists()):
             raise ValidationError("Уже есть бронь на эти даты.")
 
+        existing = Accomodattion.objects.filter(client=client,
+                                                in_date__lte=out_date,
+                                                out_date__gte=in_date).exclude(id= instance.id)
+        
+        if (existing.exists()):
+            raise ValidationError("Клиент уже проживает в отеле.")
+
         for attr, value in data.items():
                 setattr(instance, attr, value)
         
@@ -68,13 +82,13 @@ class ServiceAccomodation:
 class ServiceProvision:
 
     def create_provision(data):
-        employee = data["employee"]
+        employee = data.get("employee") 
         accomodattion = data["accomodattion"]
         service = data["service"]
         quantity = data["quantity"]
         user = data["user"]
         
-        if (employee.profile.role != Profile.Role.employee):
+        if (employee != None and employee.profile.role != Profile.Role.employee):
             raise ValidationError("Сотрудник должен быть зарегестрирован.")
 
         if (quantity<=0 or quantity>100):

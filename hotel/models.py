@@ -29,6 +29,8 @@ class Room(models.Model):
     description = models.TextField("Описание")
     price = models.FloatField("Цена")
 
+    user = models.ForeignKey("auth.User", verbose_name="Автор записи", on_delete=models.CASCADE, null=True, related_name="author_user_room")
+
     class Meta:
         verbose_name="Номер"
         verbose_name_plural = "Номера"
@@ -73,7 +75,7 @@ class Provision(models.Model):
     quantity = models.IntegerField("Количество")
     price = models.FloatField("Сумма", blank=True)
     service = models.ForeignKey("hotel.Service", on_delete=models.CASCADE, null=True)
-    employee = models.ForeignKey("auth.User", on_delete=models.CASCADE, null=True, related_name="employee_user_provision")
+    employee = models.ForeignKey("auth.User", on_delete=models.CASCADE, null=True, blank=True, related_name="employee_user_provision")
     accomodattion = models.ForeignKey("hotel.Accomodattion", on_delete=models.CASCADE, null=True)
     
     user = models.ForeignKey("auth.User", verbose_name="Автор записи", on_delete=models.CASCADE, null=True, related_name="author_user_provision")
@@ -92,6 +94,8 @@ class Service(models.Model):
     name = models.TextField("Название")
     price = models.FloatField("Цена")
     picture = models.ImageField("Изображение", null=True, upload_to="hotel")
+    
+    user = models.ForeignKey("auth.User", verbose_name="Автор записи", on_delete=models.CASCADE, null=True, related_name="author_user_service")
 
     class Meta:
         verbose_name="Услуга"

@@ -1,8 +1,10 @@
 <script setup>
 import axios from 'axios';
-import { computed, onBeforeMount, ref, } from 'vue';
+import { computed, onBeforeMount, ref, watch } from 'vue';
 import Cookies from 'js-cookie';
 import SearchFilters from '@/components/SearchFilters.vue'
+import CreateAccommodattion from '@/components/CreateAccommodattion.vue';
+import ErrorModal from '@/components/ErrorModal.vue';
 import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
 
@@ -17,15 +19,16 @@ const clients = ref([])
 
 let loading = ref(false)
 let isError = ref(false)
-let textOfError = ref()
+let textOfError = ref('')
+let accomodattionModal = ref(false)
 
 const profileStore = useProfileStore();
 const {
     isSuperUser,
-    id
+    id,
+    thisCanBeAddAndChanged,
+    userName
 } = storeToRefs(profileStore)
-
-
 
 function roomLabel(id) {
     const r = rooms.value.find(x => x.id === id);
@@ -75,26 +78,33 @@ async function onUpdateAccomodattion() {
         accomodattionToEdit.value = {};
         await fetchAccomodattion();
     } catch (error) {
-        isError.value = true;
-        textOfError.value = error.response.data[0];
+                isError.value = true;
+        const responseData = error.response?.data
+        if (Array.isArray(responseData)) {
+            textOfError.value = responseData.join('\n')
+        } else if (typeof responseData === 'object') {
+            const errorMessages = [];
+
+            for (const [field, messages] of Object.entries(responseData)) {
+
+                const fieldMessages = Array.isArray(messages) ? messages.join(', ') : messages;
+
+                errorMessages.push(`${field}: ${fieldMessages}`);
+            }
+
+            textOfError.value = errorMessages.join('\n');
+        } else if (typeof responseData === 'string') {
+            textOfError.value = allErrors
+        } else {
+            textOfError.value = error.message || 'Неизвестная ошибка';
+        }
     }
 
 }
 
-async function onAccomodattionAdd() {
-    const payload = {
-        ...accomodattionToAdd.value,
-        price: totalPrice.value,
-        user: id.value
-    };
-    try {
-        await axios.post("/api/accomodattion/", payload);
-        accomodattionToAdd.value = {};
-        await fetchAccomodattion();
-    } catch (error) {
-        isError.value = true;
-        textOfError.value = error.response.data[0];
-    }
+async function fetchClients() {
+    const r = await axios.get("/api/users/?role=2")
+    clients.value = r.data;
 }
 
 async function fetchAccomodattion() {
@@ -109,11 +119,6 @@ async function fetchRooms() {
     rooms.value = r.data;
 }
 
-
-async function fetchClients() {
-    const r = await axios.get("/api/users/?role=2")
-    clients.value = r.data;
-}
 
 onBeforeMount(async () => {
     axios.defaults.headers.common['X-CSRFToken'] = Cookies.get("csrftoken");
@@ -134,29 +139,32 @@ async function onRemoveClick(accomodattion) {
 
         <h1>Проживания</h1>
         <div class="objects">
-            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#accomodattionModal">
+            <button type="button" class="btn btn-warning" @click="accomodattionModal = true">
                 Добавить проживание
             </button>
             <div v-if="loading">Данные загружаются, подождите...</div>
-            <div v-if="!loading && accomodattions.length==0">У вас нет проживаний</div>
+            <div v-if="!loading && accomodattions.length == 0">У вас нет проживаний</div>
             <div v-if="accomodattions != null && isSuperUser">
                 <search-filters :items="accomodattions"
                     @update:filtered-items="filteredAccommodations = $event"></search-filters>
             </div>
             <div v-for="accomodattion in (isSuperUser ? filteredAccommodations : accomodattions)">
                 <div class="list">
-                    <div> Номер {{ roomLabel(accomodattion.room) }}, даты:
-                        {{ accomodattion.in_date }}:{{ accomodattion.out_date }},
+                    <div> Номер {{ roomLabel(accomodattion.room) }}, даты: с
+                        {{ accomodattion.in_date }} по {{ accomodattion.out_date }},
                         клиент: {{ clientLabel(accomodattion.client) }}
                     </div>
-                    <button class="btn btn-success" @click="onAccomodattionEditClick(accomodattion)"
-                        data-bs-toggle="modal" data-bs-target="#editAccomodattionModal">
-                        <i class="bi bi-pen-fill"> </i>
-                    </button>
-                    <button class="btn btn-danger" @click="selectedAccomodattion = accomodattion" data-bs-toggle="modal"
-                        data-bs-target="#deleteModal">
-                        <i class="bi bi-x"></i>
-                    </button>
+                    <div class="buttons-div"
+                        v-if="(accomodattion.user === id || isSuperUser) && thisCanBeAddAndChanged">
+                        <button class="btn btn-success" @click="onAccomodattionEditClick(accomodattion)"
+                            data-bs-toggle="modal" data-bs-target="#editAccomodattionModal">
+                            <i class="bi bi-pen-fill"> </i>
+                        </button>
+                        <button class="btn btn-danger" @click="selectedAccomodattion = accomodattion"
+                            data-bs-toggle="modal" data-bs-target="#deleteModal">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -229,88 +237,10 @@ async function onRemoveClick(accomodattion) {
         </div>
 
 
-        <div class="modal fade" id="accomodattionModal" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h1 class="modal-title fs-5">
-                            Добавить проживание
-                        </h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body objects">
-                        <div class="row">
-                            <div class="col">
-                                <div class="form-floating">
-                                    <select class="form-select" v-model="accomodattionToAdd.room" required>
-                                        <option :value="r.id" v-for="r in rooms">{{ r.number }}</option>
-                                    </select>
-                                    <label for="floatingInput">Номер</label>
-                                </div>
-                            </div>
-                            <div class="col">
-                                <div class="form-floating">
-                                    <input type="number" class="form-control" :value="totalPrice" readonly />
-                                    <label for="floatingInput">Цена</label>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col">
-                                <div class="form-floating">
-                                    <input type="date" class="form-control" v-model="accomodattionToAdd.in_date"
-                                        required />
-                                    <label for="floatingInput">Дата въезда</label>
-                                </div>
-                            </div>
-                            <div class="col">
-                                <div class="form-floating">
-                                    <input type="date" class="form-control" v-model="accomodattionToAdd.out_date"
-                                        required />
-                                    <label for="floatingInput">Дата выезда</label>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col">
-                                <div class="form-floating">
-                                    <select class="form-select" v-model="accomodattionToAdd.client" required>
-                                        <option :value="c.id" v-for="c in clients">{{ c.username }}</option>
-                                    </select>
-                                    <label for="floatingInput">Клиент</label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal">
-                            Закрыть
-                        </button>
-                        <button data-bs-dismiss="modal" type="button" class="btn btn-success"
-                            @click="onAccomodattionAdd">
-                            Добавить
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <CreateAccommodattion v-model="accomodattionModal" :clients="(thisCanBeAddAndChanged) ? clients : [{ id: id, username: userName }]" :rooms="rooms"
+            @success="fetchAccomodattion" />
 
-        <transition name="modal" v-if="isError">
-            <div class="modal-mask">
-                <div class="modal-wrapper">
-                    <div class="modal-container">
-                        <div>
-                            {{ textOfError }}
-                        </div>
-                        <div>
-                            <button class="modal-default-button" @click="isError = false">
-                                OK
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </transition>
+        <ErrorModal v-if="isError" v-model="isError" :textOfError="textOfError" />
 
         <div class="modal fade" id="deleteModal" tabindex="-1">
             <div class="modal-dialog">

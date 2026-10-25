@@ -2,7 +2,7 @@ from rest_framework import mixins
 from django.contrib.auth.models import User
 from rest_framework.decorators import action
 from rest_framework.response import Response
-
+# from django.utils import timezone
 from rest_framework.viewsets import GenericViewSet
 from django.contrib.auth import logout as django_logout
 from django.contrib.auth import login as django_login
@@ -73,8 +73,12 @@ class AccomodattionViewset(mixins.CreateModelMixin,
         else:
             qs = super().get_queryset()
             
-            qs = qs.filter(user=self.request.user)
-
+            role = self.request.user.profile.role
+            if(role==2):
+                qs = qs.filter(client=self.request.user)
+            else:
+                qs = qs.filter(user=self.request.user)
+            
             return qs
 
 class ProvisionViewset(mixins.CreateModelMixin, 
@@ -93,7 +97,11 @@ class ProvisionViewset(mixins.CreateModelMixin,
         else:
             qs = super().get_queryset()
             
-            qs = qs.filter(user=self.request.user)
+            role = self.request.user.profile.role
+            if(role==2):
+                return qs.filter(accomodattion__client=self.request.user)
+            else:
+                qs = qs.filter(user=self.request.user)
 
             return qs
 

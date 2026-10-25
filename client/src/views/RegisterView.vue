@@ -1,15 +1,8 @@
 <script setup>
+import {ref} from 'vue';
 import useProfileStore from '@/stores/profileStore';
 
-import {ref} from 'vue';
-import { storeToRefs } from 'pinia';
-
 const profileStore = useProfileStore();
-const {
-    isAuthenticated,
-    userName
-} = storeToRefs(profileStore)
-
 
 const username = ref("")
 const password = ref("")

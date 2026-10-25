@@ -1,11 +1,28 @@
 <script setup>
 import axios from 'axios';
-import { onBeforeMount, ref, toRaw } from 'vue';
+import { onBeforeMount, ref, toRaw, computed } from 'vue';
 import Cookies from 'js-cookie';
+import SearchFilters from '@/components/SearchFilters.vue'
+import { storeToRefs } from 'pinia';
+import useProfileStore from '../stores/profileStore';
+import CreateAccommodattion from '@/components/CreateAccommodattion.vue';
+
+const filteredRooms = ref([])
+
+const accomodattionModal = ref(false)
+
+const profileStore = useProfileStore();
+const {
+  isSuperUser,
+  id,
+  thisCanBeAddAndChanged,
+  userName
+} = storeToRefs(profileStore)
 
 const rooms = ref([])
 const selectedRoom = ref([])
 let loading = ref(false)
+const clients = ref([])
 
 const roomToAdd = ref({});
 const roomToEdit = ref({});
@@ -33,6 +50,14 @@ window.onload = function () {
     closeAddModal()
   })
 }
+
+const isFormValid = computed(() => {
+  if (!roomToAdd.value || Object.keys(roomToAdd.value).length === 0) {
+    return false;
+  }
+  const { number, description, price } = roomToAdd.value;
+  return (number && description && price);
+});
 
 async function roomsAddImageChange() {
   for (const file of roomsPictureRef.value.files) {
@@ -111,6 +136,7 @@ async function onRoomAdd() {
   formData.set('number', roomToAdd.value.number)
   formData.set('description', roomToAdd.value.description)
   formData.set('price', roomToAdd.value.price)
+  formData.set('user', id.value)
 
   if (selectedImages.value) {
     const filesArray = toRaw(selectedImages.value).flatMap(item => item.files ?? item)
@@ -129,6 +155,11 @@ async function onRoomAdd() {
   await fetchRooms();
 }
 
+async function fetchClients() {
+  const r = await axios.get("/api/users/?role=2")
+  clients.value = r.data;
+}
+
 async function fetchRooms() {
   loading.value = true
   const r = await axios.get("/api/rooms/")
@@ -139,6 +170,7 @@ async function fetchRooms() {
 onBeforeMount(async () => {
   axios.defaults.headers.common['X-CSRFToken'] = Cookies.get("csrftoken");
   await fetchRooms()
+  await fetchClients()
 })
 
 async function onRemoveClick(room) {
@@ -154,28 +186,46 @@ async function onRemoveClick(room) {
     <h1>Номера отеля</h1>
 
     <div class="objects">
-      <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#roomModel">
+      <button type="button" v-if="thisCanBeAddAndChanged" class="btn btn-warning" data-bs-toggle="modal"
+        data-bs-target="#roomModel">
         Добавить номер
       </button>
       <div v-if="loading">Данные загружаются, подождите...</div>
-      <div v-for="room in rooms">
+      <div v-if="!loading && rooms.length == 0">У вас нет комнат</div>
+      <div v-if="rooms != null && isSuperUser">
+        <search-filters :items="rooms" @update:filtered-items="filteredRooms = $event"></search-filters>
+      </div>
+      <div v-for="room in (isSuperUser ? filteredRooms : rooms)">
         <div class="list">
           <div> Номер {{ room.number }}</div>
           <div> Цена: {{ room.price }}</div>
           <div v-show="room.picture"><img :src="room.picture[0]?.picture" type="button"
               @click="currentImage = room.picture" data-bs-toggle="modal" data-bs-target="#imageModal"
               style="max-height: 60px;"></div>
-          <button class="btn btn-success" @click="onRoomEditClick(room)" data-bs-toggle="modal"
-            data-bs-target="#editRoomModal">
-            <i class="bi bi-pen-fill"> </i>
-          </button>
-          <button class="btn btn-danger" @click="selectedRoom = room" data-bs-toggle="modal"
-            data-bs-target="#deleteModal">
-            <i class="bi bi-x"></i>
-          </button>
+          <div class="buttons-div">
+            <div class="buttons-div" v-if="(room.user === id || isSuperUser) && thisCanBeAddAndChanged">
+              <button class="btn btn-success" @click="onRoomEditClick(room)" data-bs-toggle="modal"
+                data-bs-target="#editRoomModal">
+                <i class="bi bi-pen-fill"> </i>
+              </button>
+              <button class="btn btn-danger" @click="selectedRoom = room" data-bs-toggle="modal"
+                data-bs-target="#deleteModal">
+                <i class="bi bi-x"></i>
+              </button>
+            </div>
+            <button class="btn btn-warning" @click="selectedRoom = room; accomodattionModal = true">
+              <i class="bi bi-plus-circle"></i>
+            </button>
+          </div>
+
         </div>
       </div>
     </div>
+
+
+    <CreateAccommodattion v-model="accomodattionModal"
+      :clients="(thisCanBeAddAndChanged) ? clients : [{ id: id, username: userName }]" :rooms="[selectedRoom]" />
+
 
     <div class="modal fade" id="editRoomModal" tabindex="-1">
       <div class="modal-dialog">
@@ -295,7 +345,8 @@ async function onRemoveClick(room) {
             <button type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="closeAddModal">
               Закрыть
             </button>
-            <button data-bs-dismiss="modal" type="button" class="btn btn-success" @click="onRoomAdd">
+            <button data-bs-dismiss="modal" :disabled="!isFormValid" type="button" class="btn btn-success"
+              @click="onRoomAdd">
               Добавить
             </button>
           </div>

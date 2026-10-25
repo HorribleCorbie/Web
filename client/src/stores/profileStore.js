@@ -10,6 +10,8 @@ const useProfileStore = defineStore('profileStore', () => {
     const isSuperUser = ref(false)
     const userName = ref(null);
     const id = ref(-1)
+    const role = ref(null)
+    const thisCanBeAddAndChanged = ref(false)
     
     async function fetchMe() {
         const r = await axios.get("/api/profile/me/");
@@ -18,6 +20,9 @@ const useProfileStore = defineStore('profileStore', () => {
         isSuperUser.value = r.data.is_superuser
         id.value = r.data.id;
         userName.value = r.data.is_authenticated ? r.data.username : null;
+        role.value = r.data.role ?  r.data.role : null
+        if (role.value != 2)
+            thisCanBeAddAndChanged.value = true
     }
 
     async function register(username, password) {
@@ -50,6 +55,8 @@ const useProfileStore = defineStore('profileStore', () => {
         userName,
         isSuperUser,
         id,
+        role,
+        thisCanBeAddAndChanged,
 
         fetchMe,
         login,
