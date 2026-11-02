@@ -15,7 +15,8 @@ const profileStore = useProfileStore();
 const {
   isSuperUser,
   id,
-  thisCanBeAddAndChanged
+  thisCanBeAddAndChanged,
+  role
 } = storeToRefs(profileStore)
 
 const activeAccomodattions = ref([])
@@ -161,7 +162,7 @@ async function onRemoveClick(service) {
     <h1>Услуги</h1>
 
     <div class="objects">
-      <button type="button" v-if="thisCanBeAddAndChanged" class="btn btn-warning" data-bs-toggle="modal"
+      <button type="button" v-if="thisCanBeAddAndChanged && role!=2" class="btn btn-warning" data-bs-toggle="modal"
         data-bs-target="#serviceModel">
         Добавить услугу
       </button>
@@ -172,7 +173,8 @@ async function onRemoveClick(service) {
       </div>
       <div v-for="service in (isSuperUser ? filteredService : services)">
         <div class="list">
-          <div> {{ service.name }}</div>
+          <div> {{service.name }}</div>
+          <div>Цена: {{ service.price }}</div>
           <div v-show="service.picture"><img :src="service.picture" type="button"
               @click="selectedImage = service.picture" data-bs-toggle="modal" data-bs-target="#imageModal"
               style="max-height: 60px;">

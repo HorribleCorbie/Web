@@ -6,6 +6,7 @@ from hotel.models import *
 @admin.register(Room)
 class RoomAdmin(admin.ModelAdmin):
     list_display=['number', 'description', 'price']
+    list_filter = ['user']
 
 @admin.register(Accomodattion)
 class AccomodattionAdmin(admin.ModelAdmin):
@@ -15,6 +16,7 @@ class AccomodattionAdmin(admin.ModelAdmin):
 @admin.register(Service)
 class ServiceAdmin(admin.ModelAdmin):
     list_display=['id', 'name', 'price']
+    list_filter = ['user']
 
 @admin.register(Provision)
 class ProvisionAdmin(admin.ModelAdmin):
@@ -27,5 +29,6 @@ class ImageAdmin(admin.ModelAdmin):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
+    list_filter = ['role']
     def has_add_permission(self, request):
         return False

@@ -16,7 +16,8 @@ const {
   isSuperUser,
   id,
   thisCanBeAddAndChanged,
-  userName
+  userName,
+  role
 } = storeToRefs(profileStore)
 
 const rooms = ref([])
@@ -186,7 +187,7 @@ async function onRemoveClick(room) {
     <h1>Номера отеля</h1>
 
     <div class="objects">
-      <button type="button" v-if="thisCanBeAddAndChanged" class="btn btn-warning" data-bs-toggle="modal"
+      <button  type="button" v-if="thisCanBeAddAndChanged && role !=2" class="btn btn-warning" data-bs-toggle="modal" 
         data-bs-target="#roomModel">
         Добавить номер
       </button>

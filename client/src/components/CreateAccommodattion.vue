@@ -16,6 +16,7 @@ const props = defineProps({
         required: true
     },
 })
+const client = ref(props.clients[0].id)
 
 const accomodattionToAdd = ref({})
 const accomodattionModal = defineModel({ type: Boolean, default: false })
@@ -26,8 +27,8 @@ const isFormValid = computed(() => {
     if (!accomodattionToAdd.value || Object.keys(accomodattionToAdd.value).length === 0) {
         return false;
     }
-    const { room, in_date, out_date, client } = accomodattionToAdd.value;
-    return (room && in_date && out_date && client);
+    const { room, in_date, out_date } = accomodattionToAdd.value;
+    return (room && in_date && out_date);
 });
 
 const profileStore = useProfileStore();
@@ -75,7 +76,6 @@ onBeforeUnmount(() => {
 function clearForm(){
     accomodattionToAdd.value = {
             room: null,
-            client: null,
             in_date: '',
             out_date: ''
         };
@@ -105,6 +105,7 @@ async function onAccomodattionAdd() {
     const payload = {
         ...accomodattionToAdd.value,
         price: totalPrice.value,
+        client: client.value,
         user: id.value
     };
     try {
@@ -180,11 +181,11 @@ async function onAccomodattionAdd() {
                             </div>
                         </div>
                     </div>
-                    <div class="row">
+                    <div class="row" v-if="clients.length>=2">
                         <div class="col">
                             <div class="form-floating">
-                                <select class="form-select" v-model="accomodattionToAdd.client" required>
-                                    <option :value="c.id" v-for="c in clients">{{ c.username }}</option>
+                                <select class="form-select" v-model="client" required>
+                                    <option selected :value="c.id" v-for="c in clients">{{ c.username }}</option>
                                 </select>
                                 <label for="floatingInput">Клиент</label>
                             </div>

@@ -5,6 +5,8 @@ model-bakery==1.24.0
 Pillow==12.3.0
 django-cleanup==9.0.0
 django-cors-headers==4.9.0
+Faker==40.43.0
+requests == 2.34.2
 #python manage.py runserver localhost:8080
 #python manage.py makemigrations
 #python manage.py migrate

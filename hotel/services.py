@@ -1,6 +1,8 @@
 from rest_framework.exceptions import ValidationError
 from .models import Accomodattion, Profile, Provision
 
+# проверка на активные проживания
+
 class ServiceAccomodation:
     
     def create_accomodattiom(data):
@@ -15,6 +17,9 @@ class ServiceAccomodation:
 
         if (client.profile.role != Profile.Role.client):
             raise ValidationError("Клиент должен быть зарегестрирован.")
+        
+        if (user.profile.role == Profile.Role.client and  user!=client):
+            raise ValidationError("Клиент может создать только себе проживание.")
 
         price = ((out_date-in_date).days+1)*room.price
 
