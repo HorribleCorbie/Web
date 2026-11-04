@@ -13,7 +13,6 @@ const accomodattionToEdit = ref({})
 const selectedAccomodattion = ref([])
 
 const accomodattions = ref([])
-const filteredAccommodations = ref([])
 const rooms = ref([])
 const clients = ref([])
 
@@ -30,15 +29,6 @@ const {
     userName
 } = storeToRefs(profileStore)
 
-function roomLabel(id) {
-    const r = rooms.value.find(x => x.id === id);
-    return r ? r.number : id;
-}
-
-function clientLabel(id) {
-    const c = clients.value.find(x => x.id === id);
-    return c != undefined ? (c.first_name ? c.first_name : c.username) : id
-}
 
 const source = computed(() => {
     return accomodattionToEdit.value.id
@@ -78,7 +68,7 @@ async function onUpdateAccomodattion() {
         accomodattionToEdit.value = {};
         await fetchAccomodattion();
     } catch (error) {
-                isError.value = true;
+        isError.value = true;
         const responseData = error.response?.data
         if (Array.isArray(responseData)) {
             textOfError.value = responseData.join('\n')
@@ -103,19 +93,13 @@ async function onUpdateAccomodattion() {
 }
 
 async function fetchClients() {
-    const r = await axios.get("/api/users/?role=2")
+    const r = await axios.get("/api/users/?role=2", { params: { all: 1 } })
     clients.value = r.data;
 }
 
-async function fetchAccomodattion() {
-    loading.value = true
-    const r = await axios.get("/api/accomodattion/")
-    accomodattions.value = r.data;
-    loading.value = false
-}
 
 async function fetchRooms() {
-    const r = await axios.get("/api/rooms/")
+    const r = await axios.get("/api/rooms/", { params: { all: 1 } })
     rooms.value = r.data;
 }
 
@@ -131,6 +115,40 @@ async function onRemoveClick(accomodattion) {
     await axios.delete(`/api/accomodattion/${accomodattion.id}/`);
     await fetchAccomodattion();
 }
+
+
+const page = ref(1)
+const pageItemsCount = ref(10)
+const authorFilter = ref(null)
+
+async function fetchAccomodattion() {
+    loading.value = true
+    const params = { page: page.value, page_size: pageItemsCount.value }
+    if (authorFilter.value) params.user = authorFilter.value
+    const r = await axios.get('/api/accomodattion/', { params })
+    accomodattions.value = r.data.results
+    pagesCount.value = Math.max(1, Math.ceil(r.data.count / pageItemsCount.value))
+    loading.value = false
+}
+
+watch(authorFilter, () => {
+    if (page.value === 1) fetchAccomodattion()
+    else page.value = 1
+})
+
+const pagesCount = ref()
+
+watch(page, () => {
+    fetchAccomodattion();
+})
+
+function label(name) {
+    return name.user_first_name ? name.user_first_name : name.user_name
+}
+
+function client_label(name) {
+    return name.client_name ? name.client_name : name.client_user
+}
 </script>
 
 <template>
@@ -144,29 +162,67 @@ async function onRemoveClick(accomodattion) {
             </button>
             <div v-if="loading">Данные загружаются, подождите...</div>
             <div v-if="!loading && accomodattions.length == 0">У вас нет проживаний</div>
-            <div v-if="accomodattions != null && isSuperUser">
-                <search-filters :items="accomodattions"
-                    @update:filtered-items="filteredAccommodations = $event"></search-filters>
-            </div>
-            <div v-for="accomodattion in (isSuperUser ? filteredAccommodations : accomodattions)">
-                <div class="list">
-                    <div> Номер {{ roomLabel(accomodattion.room) }}, даты: с
-                        {{ accomodattion.in_date }} по {{ accomodattion.out_date }},
-                        клиент: {{ clientLabel(accomodattion.client) }}
-                    </div>
-                    <div class="buttons-div"
-                        v-if="(accomodattion.user === id || isSuperUser) && thisCanBeAddAndChanged">
-                        <button class="btn btn-success" @click="onAccomodattionEditClick(accomodattion)"
-                            data-bs-toggle="modal" data-bs-target="#editAccomodattionModal">
-                            <i class="bi bi-pen-fill"> </i>
-                        </button>
-                        <button class="btn btn-danger" @click="selectedAccomodattion = accomodattion"
-                            data-bs-toggle="modal" data-bs-target="#deleteModal">
-                            <i class="bi bi-x"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <search-filters v-if="isSuperUser" v-model="authorFilter" :type="'accomodattion'" />
+
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">Номер комнаты</th>
+                        <th scope="col">Дата заселения</th>
+                        <th scope="col">Дата выезда</th>
+                        <th scope="col">Клиент</th>
+                        <th scope="col">Управление</th>
+                        <th v-if="isSuperUser" scope="col">Автор</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="accomodattion in accomodattions">
+                        <td>{{ accomodattion.room_number }}</td>
+                        <td>{{ accomodattion.in_date }}</td>
+                        <td>{{ accomodattion.out_date }}</td>
+                        <td>{{ client_label(accomodattion) }}</td>
+                        <td>
+                            <div class="buttons-div"
+                                v-if="(accomodattion.user === id || isSuperUser) && thisCanBeAddAndChanged">
+                                <button class="btn btn-success" @click="onAccomodattionEditClick(accomodattion)"
+                                    data-bs-toggle="modal" data-bs-target="#editAccomodattionModal">
+                                    <i class="bi bi-pen-fill"></i>
+                                </button>
+                                <button class="btn btn-danger" @click="selectedAccomodattion = accomodattion"
+                                    data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td v-if="isSuperUser">{{ label(accomodattion) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <nav aria-label="Page navigation example">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item " v-if="page > 1" @click="page -= 1">
+                        <a class="page-link" href="#">Previous</a>
+                    </li>
+
+                    <li @click="page = page - 1" class="page-item" v-if="page - 1 > 0"><a class="page-link">{{ page - 1
+                    }}</a>
+                    </li>
+                    <li class="page-item" v-if="page > 0"><span href="" class="page-link">{{ page }}</span></li>
+                    <li @click="page = page + 1" class="page-item" v-if="page + 1 < pagesCount"><a class="page-link">{{
+                        page + 1
+                    }}</a></li>
+                    <li @click="page = page + 2" class="page-item" v-if="page + 2 < pagesCount"><a class="page-link">{{
+                        page + 2
+                    }}</a></li>
+                    <li @click="page = page + 3" class="page-item" v-if="page + 3 < pagesCount"><a class="page-link">{{
+                        page + 3
+                    }}</a></li>
+
+                    <li class="page-item" v-if="page < pagesCount">
+                        <a class="page-link" href="#" @click="page += 1">Next</a>
+                    </li>
+                </ul>
+            </nav>
         </div>
 
 
@@ -237,7 +293,8 @@ async function onRemoveClick(accomodattion) {
         </div>
 
 
-        <CreateAccommodattion v-model="accomodattionModal" :clients="(thisCanBeAddAndChanged) ? clients : [{ id: id, username: userName }]" :rooms="rooms"
+        <CreateAccommodattion v-if="accomodattionModal" v-model="accomodattionModal"
+            :clients="(thisCanBeAddAndChanged) ? clients : [{ id: id, username: userName }]" :rooms="rooms"
             @success="fetchAccomodattion" />
 
         <ErrorModal v-if="isError" v-model="isError" :textOfError="textOfError" />

@@ -1,64 +1,65 @@
 <script setup>
-import { onBeforeMount, ref, computed, watch } from 'vue';
-import axios from 'axios';
-const props = defineProps({
-  items: {
-    type: Array,
-    required: true
-  }
+import { onBeforeMount, ref, computed } from 'vue'
+import axios from 'axios'
+
+const selectedAuthor = defineModel({ default: null })
+
+const authors = ref([])
+const searchQuery = ref('')
+const isOpen = ref(false)
+
+const label = a => a.first_name || a.username
+
+const filteredAuthors = computed(() => {
+  const q = searchQuery.value.toLowerCase().trim()
+  if (!q) return authors.value
+  return authors.value.filter(a => label(a).toLowerCase().includes(q))
 })
 
-const clients = ref([])
-
-const emit = defineEmits(['update:filteredItems']);
-let selectedAuthor = ref(-1)
-
-const authors = computed(() => {
-  return new Map(
-    props.items.map(i => [
-      clientLabel(i.user),
-      i.user
-    ])
-  );
-});
-
-function clientLabel(id) {
-  const c = clients.value.find(x => x.id === id);
-  return c != undefined ? (c.first_name ? c.first_name : c.username) : id
+function selectAuthor(a) {
+  selectedAuthor.value = a.id
+  searchQuery.value = label(a)
+  isOpen.value = false
 }
 
-async function fetchUsers() {
-  const r = await axios.get("/api/users/")
-  clients.value = r.data;
+function clearAuthor() {
+  selectedAuthor.value = null
+  searchQuery.value = ''
 }
 
-const filteredItems = computed(() => {
+function onInput() {
+  if (selectedAuthor.value !== null) selectedAuthor.value = null
+}
 
-  if (selectedAuthor.value===-1)
-    return props.items
-
-  return props.items.filter(item => item.user ===selectedAuthor.value)
-});
-
-watch(
-  filteredItems,
-  value => emit('update:filteredItems', value),
-  { immediate: true }
-);
-
+const props = defineProps({
+    type: {
+        type: String,
+        required: true
+    }
+})
 
 onBeforeMount(async () => {
-  await fetchUsers()
+  const r = await axios.get(`/api/${props.type}/authors/`);
+  authors.value = r.data
 })
 </script>
 
 <template>
-  <div class="search-div">
-    <div>
-      <select v-model="selectedAuthor" class="form-select search"">
-        <option selected  :value="-1">Выберите автора</option>
-        <option v-for="[name, id] in authors" :key="id" :value="id">{{ name }}</option>
-      </select>
+  <div class="search-div position-relative">
+    <div class="input-group">
+      <input type="text" v-model="searchQuery" class="form-control" placeholder="Выберите или введите автора..."
+        @focus="isOpen = true" @blur="isOpen = false" @input="onInput" />
+      <button v-if="selectedAuthor !== null" class="btn btn-outline-secondary" type="button"
+        @click="clearAuthor">✕</button>
     </div>
+
+    <ul v-if="isOpen" class="dropdown-menu show w-100" style="max-height: 200px; overflow-y: auto; z-index: 1000;">
+      <li v-if="filteredAuthors.length === 0">
+        <span class="dropdown-item text-muted">Ничего не найдено</span>
+      </li>
+      <li v-for="a in filteredAuthors" :key="a.id" @mousedown.prevent="selectAuthor(a)">
+        <button type="button" class="dropdown-item">{{ label(a) }}</button>
+      </li>
+    </ul>
   </div>
 </template>

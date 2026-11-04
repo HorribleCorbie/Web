@@ -1,13 +1,12 @@
 <script setup>
 import axios from 'axios';
-import { onBeforeMount, ref, toRaw, computed } from 'vue';
+import { onBeforeMount, ref, toRaw, computed, watch } from 'vue';
 import Cookies from 'js-cookie';
 import SearchFilters from '@/components/SearchFilters.vue'
 import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
 import CreateAccommodattion from '@/components/CreateAccommodattion.vue';
 
-const filteredRooms = ref([])
 
 const accomodattionModal = ref(false)
 
@@ -20,6 +19,9 @@ const {
   role
 } = storeToRefs(profileStore)
 
+
+const page = ref(1);
+const pageItemsCount = ref(10);
 const rooms = ref([])
 const selectedRoom = ref([])
 let loading = ref(false)
@@ -156,17 +158,37 @@ async function onRoomAdd() {
   await fetchRooms();
 }
 
-async function fetchClients() {
-  const r = await axios.get("/api/users/?role=2")
-  clients.value = r.data;
+async function fetchAll(url, params = {}) {
+  const r = await axios.get(url, { params: { ...params, all: 1 } })
+  return Array.isArray(r.data) ? r.data : r.data.results
 }
+
+async function fetchClients() {
+  clients.value = await fetchAll('/api/users/', { role: 2 })
+}
+
+const authorFilter = ref(null)
 
 async function fetchRooms() {
   loading.value = true
-  const r = await axios.get("/api/rooms/")
-  rooms.value = r.data;
+  const params = { page: page.value, page_size: pageItemsCount.value }
+  if (authorFilter.value) params.user = authorFilter.value
+  const r = await axios.get('/api/rooms/', { params })
+  rooms.value = r.data.results
+  pagesCount.value = Math.max(1, Math.ceil(r.data.count / pageItemsCount.value))
   loading.value = false
 }
+
+watch(authorFilter, () => {
+  if (page.value === 1) fetchRooms()
+  else page.value = 1
+})
+
+const pagesCount = ref()
+
+watch(page, () => {
+  fetchRooms();
+})
 
 onBeforeMount(async () => {
   axios.defaults.headers.common['X-CSRFToken'] = Cookies.get("csrftoken");
@@ -178,6 +200,10 @@ async function onRemoveClick(room) {
   await axios.delete(`/api/rooms/${room.id}/`);
   await fetchRooms();
 }
+
+function label(name){
+  return name.user_first_name ? name.user_first_name: name.user_name
+}
 </script>
 
 <template>
@@ -187,44 +213,81 @@ async function onRemoveClick(room) {
     <h1>Номера отеля</h1>
 
     <div class="objects">
-      <button  type="button" v-if="thisCanBeAddAndChanged && role !=2" class="btn btn-warning" data-bs-toggle="modal" 
+      <button type="button" v-if="thisCanBeAddAndChanged && role != 2" class="btn btn-warning" data-bs-toggle="modal"
         data-bs-target="#roomModel">
         Добавить номер
       </button>
       <div v-if="loading">Данные загружаются, подождите...</div>
       <div v-if="!loading && rooms.length == 0">У вас нет комнат</div>
-      <div v-if="rooms != null && isSuperUser">
-        <search-filters :items="rooms" @update:filtered-items="filteredRooms = $event"></search-filters>
-      </div>
-      <div v-for="room in (isSuperUser ? filteredRooms : rooms)">
-        <div class="list">
-          <div> Номер {{ room.number }}</div>
-          <div> Цена: {{ room.price }}</div>
-          <div v-show="room.picture"><img :src="room.picture[0]?.picture" type="button"
-              @click="currentImage = room.picture" data-bs-toggle="modal" data-bs-target="#imageModal"
-              style="max-height: 60px;"></div>
-          <div class="buttons-div">
-            <div class="buttons-div" v-if="(room.user === id || isSuperUser) && thisCanBeAddAndChanged">
-              <button class="btn btn-success" @click="onRoomEditClick(room)" data-bs-toggle="modal"
-                data-bs-target="#editRoomModal">
-                <i class="bi bi-pen-fill"> </i>
-              </button>
-              <button class="btn btn-danger" @click="selectedRoom = room" data-bs-toggle="modal"
-                data-bs-target="#deleteModal">
-                <i class="bi bi-x"></i>
-              </button>
-            </div>
-            <button class="btn btn-warning" @click="selectedRoom = room; accomodattionModal = true">
-              <i class="bi bi-plus-circle"></i>
-            </button>
-          </div>
+      <search-filters v-if="isSuperUser" v-model="authorFilter" :type="'rooms'" />
 
-        </div>
-      </div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Номер</th>
+            <th scope="col">Описание</th>
+            <th scope="col">Фото</th>
+            <th scope="col">Цена</th>
+            <th scope="col">Управление</th>
+            <th v-if="isSuperUser" scope="col">Автор</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="room in rooms">
+            <th scope="row">{{ room.number }}</th>
+            <td>{{ room.description }}</td>
+            <td v-show="room.picture"><img :src="room.picture[0]?.picture" type="button"
+                @click="currentImage = room.picture" data-bs-toggle="modal" data-bs-target="#imageModal"
+                style="max-height: 60px;"></td>
+            <td>{{ room.price }}</td>
+            <td>
+              <div class="buttons-div">
+                <div class="buttons-div" v-if="(room.user === id || isSuperUser) && thisCanBeAddAndChanged">
+                  <button class="btn btn-success" @click="onRoomEditClick(room)" data-bs-toggle="modal"
+                    data-bs-target="#editRoomModal">
+                    <i class="bi bi-pen-fill"> </i>
+                  </button>
+                  <button class="btn btn-danger" @click="selectedRoom = room" data-bs-toggle="modal"
+                    data-bs-target="#deleteModal">
+                    <i class="bi bi-x"></i>
+                  </button>
+                </div>
+                <button class="btn btn-warning" @click="selectedRoom = room; accomodattionModal = true">
+                  <i class="bi bi-plus-circle"></i>
+                </button>
+              </div>
+            </td>
+            <td v-if="isSuperUser">{{ label(room) }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <nav aria-label="Page navigation example">
+        <ul class="pagination justify-content-center">
+          <li class="page-item " v-if="page > 1" @click="page -= 1">
+            <a class="page-link" href="#">Previous</a>
+          </li>
+
+          <li @click="page = page - 1" class="page-item" v-if="page - 1 > 0"><a class="page-link">{{ page - 1 }}</a>
+          </li>
+          <li class="page-item" v-if="page > 0"><span href="" class="page-link">{{ page }}</span></li>
+          <li @click="page = page + 1" class="page-item" v-if="page + 1 < pagesCount"><a class="page-link">{{ page + 1
+              }}</a></li>
+          <li @click="page = page + 2" class="page-item" v-if="page + 2 < pagesCount"><a class="page-link">{{ page + 2
+              }}</a></li>
+          <li @click="page = page + 3" class="page-item" v-if="page + 3 < pagesCount"><a class="page-link">{{ page + 3
+              }}</a></li>
+
+          <li class="page-item" v-if="page < pagesCount">
+            <a class="page-link" href="#" @click="page += 1">Next</a>
+          </li>
+        </ul>
+      </nav>
+
     </div>
 
 
-    <CreateAccommodattion v-model="accomodattionModal"
+    <CreateAccommodattion v-if="accomodattionModal" v-model="accomodattionModal"
       :clients="(thisCanBeAddAndChanged) ? clients : [{ id: id, username: userName }]" :rooms="[selectedRoom]" />
 
 

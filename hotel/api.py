@@ -2,7 +2,7 @@ from rest_framework import mixins
 from django.contrib.auth.models import User
 from rest_framework.decorators import action
 from rest_framework.response import Response
-# from django.utils import timezone
+from django.utils import timezone
 from rest_framework.viewsets import GenericViewSet
 from django.contrib.auth import logout as django_logout
 from django.contrib.auth import login as django_login
@@ -17,8 +17,26 @@ class RoomsViewset(mixins.CreateModelMixin,
                    mixins.RetrieveModelMixin, 
                    mixins.ListModelMixin, 
                    GenericViewSet):
-    queryset= Room.objects.all()
+    queryset = Room.objects.select_related('user').prefetch_related('picture').order_by('number')
     serializer_class = RoomSerializer 
+    
+    def get_queryset(self):
+        qs =super().get_queryset()
+        p = self.request.query_params
+        
+        if (author := p.get('user')) and author.isdigit():
+            qs = qs.filter(user_id=author)
+        
+        return qs
+    
+    @action(detail=False, url_path="authors", methods=['get'])
+    def authors(self, request):
+        qs = (User.objects
+            .filter(author_user_room__isnull=False)
+            .values('id', 'username', 'first_name')
+            .distinct()
+            .order_by('username'))
+        return Response(list(qs))
     
     def perform_create(self, serializer):
         room = serializer.save()
@@ -54,8 +72,26 @@ class ServicesViewset(mixins.CreateModelMixin,
                       mixins.RetrieveModelMixin, 
                       mixins.ListModelMixin, 
                       GenericViewSet):
-    queryset= Service.objects.all()
+    queryset= Service.objects.select_related('user')
     serializer_class = ServiceSerializer
+    
+    @action(detail=False, url_path="authors", methods=['get'])
+    def authors(self, request):
+        qs = (User.objects
+            .filter(author_user_service__isnull=False)
+            .values('id', 'username', 'first_name')
+            .distinct()
+            .order_by('username'))
+        return Response(list(qs))
+    
+    def get_queryset(self):
+        qs =super().get_queryset()
+        p = self.request.query_params
+        
+        if (author := p.get('user')) and author.isdigit():
+            qs = qs.filter(user_id=author)
+        
+        return qs
 
 class AccomodattionViewset(mixins.CreateModelMixin, 
                            mixins.DestroyModelMixin, 
@@ -63,23 +99,46 @@ class AccomodattionViewset(mixins.CreateModelMixin,
                            mixins.RetrieveModelMixin, 
                            mixins.ListModelMixin, 
                            GenericViewSet):
-    queryset= Accomodattion.objects.all()
+    queryset= Accomodattion.objects.select_related(
+        'room',
+        'client',
+        'user'
+    )
     serializer_class = AccomodattionSerializer
     
+    @action(detail=False, url_path="authors", methods=['get'])
+    def authors(self, request):
+        qs = (User.objects
+            .filter(author_user__isnull=False)
+            .values('id', 'username', 'first_name')
+            .distinct()
+            .order_by('username'))
+        return Response(list(qs))
+    
     def get_queryset(self):
+        qs = super().get_queryset()
+        
+        p = self.request.query_params
+        
+        if (author := p.get('user')) and author.isdigit():
+            qs = qs.filter(user_id=author)
+            
+        if p.get('actual') == '1':
+            today = timezone.localdate()
+            qs = qs.filter(
+                in_date__lte=today,
+                out_date__gte=today
+            )
+        
         if self.request.user.is_superuser:
-            qs = super().get_queryset()
             return qs
-        else:
-            qs = super().get_queryset()
-            
-            role = self.request.user.profile.role
-            if(role==2):
-                qs = qs.filter(client=self.request.user)
-            else:
-                qs = qs.filter(user=self.request.user)
-            
-            return qs
+        
+        role = self.request.user.profile.role
+        if(role==Profile.Role.client):
+            return qs.filter(client=self.request.user)
+        
+        return qs.filter(user=self.request.user)
+        
 
 class ProvisionViewset(mixins.CreateModelMixin, 
                        mixins.DestroyModelMixin, 
@@ -87,23 +146,41 @@ class ProvisionViewset(mixins.CreateModelMixin,
                        mixins.RetrieveModelMixin, 
                        mixins.ListModelMixin, 
                        GenericViewSet):
-    queryset= Provision.objects.all()
+    queryset= Provision.objects.select_related(
+        'accomodattion__client',
+        'accomodattion__room',
+        'service',
+        'employee',
+        'user'
+    )
     serializer_class = ProvisionSerializer
     
+    @action(detail=False, url_path="authors", methods=['get'])
+    def authors(self, request):
+        qs = (User.objects
+            .filter(author_user_provision__isnull=False)
+            .values('id', 'username', 'first_name')
+            .distinct()
+            .order_by('username'))
+        return Response(list(qs))
+    
     def get_queryset(self):
+        qs = super().get_queryset()
+        
+        p = self.request.query_params
+                
+        if (author := p.get('user')) and author.isdigit():
+            qs = qs.filter(user_id=author)
+        
         if self.request.user.is_superuser:
-            qs = super().get_queryset()
             return qs
-        else:
-            qs = super().get_queryset()
-            
-            role = self.request.user.profile.role
-            if(role==2):
-                return qs.filter(accomodattion__client=self.request.user)
-            else:
-                qs = qs.filter(user=self.request.user)
+        
+        role = self.request.user.profile.role
+        if(role==Profile.Role.client):
+            return qs.filter(accomodattion__client=self.request.user)
+        
+        return qs.filter(user=self.request.user)
 
-            return qs
 
 class UserViewset(mixins.CreateModelMixin, 
                        mixins.DestroyModelMixin, 
@@ -111,11 +188,11 @@ class UserViewset(mixins.CreateModelMixin,
                        mixins.RetrieveModelMixin, 
                        mixins.ListModelMixin, 
                        GenericViewSet):
-    queryset= User.objects.all()
+    queryset= User.objects.select_related('profile')
     serializer_class = UserSerializer
 
     def get_queryset(self):
-        queryset = User.objects.all()
+        queryset = super().get_queryset()
         role = self.request.query_params.get('role')
 
         if role:

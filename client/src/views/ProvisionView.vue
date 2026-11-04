@@ -1,6 +1,6 @@
 <script setup>
 import axios from 'axios';
-import { computed, onBeforeMount, ref, } from 'vue';
+import { computed, onBeforeMount, ref, watch } from 'vue';
 import Cookies from 'js-cookie';
 import SearchFilters from '@/components/SearchFilters.vue'
 import ErrorModal from '@/components/ErrorModal.vue';
@@ -8,7 +8,6 @@ import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
 import CreateProvision from '@/components/CreateProvision.vue';
 
-const filteredProvisions = ref([])
 
 const profileStore = useProfileStore();
 const {
@@ -59,10 +58,6 @@ function findCLient(id_accomodattion) {
     }
 }
 
-function accomodattionLabel(id) {
-    const acc = findAccomodattion(id);
-    if (acc != undefined) return `Клиент: ${findCLient(id)}, даты: ${acc.in_date} по ${acc.out_date}`;
-}
 
 function findAccomodattion(id_accomodattion) {
     const accomodattion = accomodattions.value.find(x => x.id === id_accomodattion)
@@ -75,12 +70,17 @@ function findService(id_service) {
 }
 
 async function onProvisionEditClick(provision) {
+    console.log('Исходный объект:', provision);
     provisionToEdit.value = { ...provision };
+    console.log('Объект для редактирования:', provisionToEdit.value);
 }
 
 async function onUpdateProvision() {
     const payload = {
-        ...provisionToEdit.value,
+        quantity: provisionToEdit.value.quantity,
+        service: provisionToEdit.value.service,
+        accomodattion: provisionToEdit.value.accomodattion,
+        employee: provisionToEdit.value.employee,
         price: totalPrice.value,
         user: id.value
     };
@@ -112,34 +112,24 @@ async function onUpdateProvision() {
     }
 }
 
-async function fetchProvision() {
-    loading.value = true
-    const r = await axios.get("/api/provision/")
-    provisions.value = r.data;
-    loading.value = false
-}
 
 async function fetchServices() {
-    const s = await axios.get("/api/service/")
+    const s = await axios.get("/api/service/", { params: { all: 1 } })
     services.value = s.data;
 }
 
 async function fetchAccomodattion() {
-    const s = await axios.get("/api/accomodattion/")
-    accomodattions.value = s.data;
-
-    const today = new Date().toISOString().split('T')[0];
-
-    activeAccomodattions.value = accomodattions.value.filter(x => x.in_date <= today && x.out_date >= today)
+    const s = await axios.get("/api/accomodattion/", { params: { actual: 1, all: 1 } })
+    activeAccomodattions.value = s.data
 }
 
 async function fetchEmployees() {
-    const r = await axios.get("/api/users/?role=1")
+    const r = await axios.get("/api/users/?role=1", { params: { all: 1 } })
     employees.value = r.data;
 }
 
 async function fetchClients() {
-    const r = await axios.get("/api/users/?role=2")
+    const r = await axios.get("/api/users/?role=2", { params: { all: 1 } })
     clients.value = r.data;
 }
 
@@ -156,6 +146,36 @@ async function onRemoveClick(provision) {
     await axios.delete(`/api/provision/${provision.id}/`);
     await fetchProvision();
 }
+
+
+const page = ref(1)
+const pageItemsCount = ref(10)
+const authorFilter = ref(null)
+
+async function fetchProvision() {
+    loading.value = true
+    const params = { page: page.value, page_size: pageItemsCount.value }
+    if (authorFilter.value) params.user = authorFilter.value
+    const r = await axios.get('/api/provision/', { params })
+    provisions.value = r.data.results
+    pagesCount.value = Math.max(1, Math.ceil(r.data.count / pageItemsCount.value))
+    loading.value = false
+}
+
+watch(authorFilter, () => {
+    if (page.value === 1) fetchProvision()
+    else page.value = 1
+})
+
+const pagesCount = ref()
+
+watch(page, () => {
+    fetchProvision();
+})
+
+function label(name) {
+    return name.user_first_name ? name.user_first_name : name.user_name
+}
 </script>
 
 <template>
@@ -165,33 +185,77 @@ async function onRemoveClick(provision) {
         <h1>Оказание услуг</h1>
 
         <div class="objects">
-            <button type="button" class="btn btn-warning" @click="provisionModal=true">
+            <button type="button" class="btn btn-warning" @click="provisionModal = true">
                 Добавить оказание услуги
             </button>
             <div v-if="loading">Данные загружаются, подождите...</div>
             <div v-if="!loading && provisions.length == 0">У вас нет оказанных услуг</div>
-            <div v-if="provisions != null && isSuperUser">
-                <search-filters :items="provisions"
-                    @update:filtered-items="filteredProvisions = $event"></search-filters>
-            </div>
-            <div v-for="provision in (isSuperUser ? filteredProvisions : provisions)">
-                <div class="list">
-                    <div> Услуга: {{ findService(provision.service) }}. {{ accomodattionLabel(provision.accomodattion)
-                        }}</div>
-                    <div class="buttons-div" v-if="(provision.user === id || isSuperUser) && thisCanBeAddAndChanged">
-                        <button class="btn btn-success" @click="onProvisionEditClick(provision)" data-bs-toggle="modal"
-                            data-bs-target="#editProvisionModal">
-                            <i class="bi bi-pen-fill"> </i>
-                        </button>
-                        <button class="btn btn-danger" @click="selectedProvision = provision" data-bs-toggle="modal"
-                            data-bs-target="#deleteModal">
-                            <i class="bi bi-x"></i>
-                        </button>
-                    </div>
+            <search-filters v-if="isSuperUser" v-model="authorFilter" :type="'provision'" />
 
-                </div>
-            </div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">Услуга</th>
+                        <th scope="col">Проживание</th>
+                        <th scope="col">Управление</th>
+                        <th v-if="isSuperUser" scope="col">Автор</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="provision in provisions">
+                        <td>{{ findService(provision.service) }}</td>
+                        <td>Клиент - {{ provision.accomodattion_info.client_name }} в номере {{
+                            provision.accomodattion_info.room_number }} с даты
+                            {{ provision.accomodattion_info.in_date }} по {{ provision.accomodattion_info.out_date }}
+                        </td>
+                        <td>
+                            <div class="buttons-div"
+                                v-if="(provision.user === id || isSuperUser) && thisCanBeAddAndChanged">
+                                <button class="btn btn-success" @click="onProvisionEditClick(provision)"
+                                    data-bs-toggle="modal" data-bs-target="#editProvisionModal">
+                                    <i class="bi bi-pen-fill"></i>
+                                </button>
+                                <button class="btn btn-danger" @click="selectedProvision = provision"
+                                    data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td v-if="isSuperUser">{{ label(provision) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <nav aria-label="Page navigation example">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item " v-if="page > 1" @click="page -= 1">
+                        <a class="page-link" href="#">Previous</a>
+                    </li>
+
+                    <li @click="page = page - 1" class="page-item" v-if="page - 1 > 0"><a class="page-link">{{ page - 1
+                            }}</a>
+                    </li>
+                    <li class="page-item" v-if="page > 0"><span href="" class="page-link">{{ page }}</span></li>
+                    <li @click="page = page + 1" class="page-item" v-if="page + 1 < pagesCount"><a class="page-link">{{
+                        page + 1
+                            }}</a></li>
+                    <li @click="page = page + 2" class="page-item" v-if="page + 2 < pagesCount"><a class="page-link">{{
+                        page + 2
+                            }}</a></li>
+                    <li @click="page = page + 3" class="page-item" v-if="page + 3 < pagesCount"><a class="page-link">{{
+                        page + 3
+                            }}</a></li>
+
+                    <li class="page-item" v-if="page < pagesCount">
+                        <a class="page-link" href="#" @click="page += 1">Next</a>
+                    </li>
+                </ul>
+            </nav>
+
         </div>
+
+
+
 
         <div class="modal fade" id="editProvisionModal" tabindex="-1">
             <div class="modal-dialog">
@@ -229,13 +293,20 @@ async function onRemoveClick(provision) {
                         <div class="row">
                             <div class="col">
                                 <div class="form-floating">
-                                    <select class="form-select" v-model="provisionToEdit.accomodattion" required>
-                                        <option :value="a.id" v-for="a in accomodattions">{{ accomodattionLabel(a.id) }}
+                                    <select class="form-select" disabled v-model="provisionToEdit.accomodattion"
+                                        required>
+                                        <option :value="provisionToEdit.accomodattion"> Клиент - {{
+                                            provisionToEdit.accomodattion_info?.client_name }}
+                                            в номере {{ provisionToEdit.accomodattion_info?.room_number }}
+                                            с даты {{ provisionToEdit.accomodattion_info?.in_date }}
+                                            по {{ provisionToEdit.accomodattion_info?.out_date }}
                                         </option>
                                     </select>
                                     <label for="floatingInput">Проживание</label>
                                 </div>
                             </div>
+                        </div>
+                        <div class="row">
                             <div class="col">
                                 <div class="form-floating">
                                     <select class="form-select" v-model="provisionToEdit.employee" required>
@@ -260,7 +331,7 @@ async function onRemoveClick(provision) {
         </div>
 
         <CreateProvision v-model="provisionModal" :services="services" :accomodattions="activeAccomodattions"
-            :clients="clients" :employees="thisCanBeAddAndChanged?employees:undefined" @success="fetchProvision" />
+            :clients="clients" :employees="thisCanBeAddAndChanged ? employees : undefined" @success="fetchProvision" />
 
         <ErrorModal v-if="isError" v-model="isError" :textOfError="textOfError" />
 

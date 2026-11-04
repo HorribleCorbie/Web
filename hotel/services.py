@@ -1,8 +1,6 @@
 from rest_framework.exceptions import ValidationError
 from .models import Accomodattion, Profile, Provision
 
-# проверка на активные проживания
-
 class ServiceAccomodation:
     
     def create_accomodattiom(data):
@@ -113,6 +111,7 @@ class ServiceProvision:
 
     def update_provision(instance, data):
         employee = data["employee"]
+        accommodattion = data["accomodattion"]
         service = data["service"]
         quantity = data["quantity"]
 
@@ -121,6 +120,9 @@ class ServiceProvision:
 
         if (quantity<=0 or quantity>100):
             raise ValidationError("Количество должно быть в диапазоне от 1 до 100")
+
+        if (accommodattion== instance["accomodattion"]):
+            raise ValidationError("Нельзя переназначить оказание услуг")
 
         for attr, value in data.items():
             setattr(instance, attr, value)
