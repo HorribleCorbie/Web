@@ -20,13 +20,13 @@ const props = defineProps({
         type: Array,
         required: true
     },
-    employees:{
+    employees: {
         type: Array,
         required: false,
     },
 })
 
-const provisionToAdd  = ref({})
+const provisionToAdd = ref({})
 const provisionModal = defineModel({ type: Boolean, default: false })
 
 const emit = defineEmits(['success'])
@@ -36,7 +36,7 @@ const isFormValid = computed(() => {
         return false
     }
     const { service, quantity, accomodattion } = provisionToAdd.value
-    return (service &&  totalPrice.value > 0 && Number(quantity) > 0 && accomodattion)
+    return (service && totalPrice.value > 0 && Number(quantity) > 0 && accomodattion)
 })
 
 const profileStore = useProfileStore();
@@ -104,17 +104,10 @@ const totalPrice = computed(() => {
     return 0
 });
 
-function findCLient(id_accomodattion) {
-    const accomodattion = findAccomodattion(id_accomodattion)
-    if (accomodattion != undefined) {
-        const client = props.clients.find(x => x.id === accomodattion.client)
-        return client != undefined ? (client.first_name ? client.first_name : client.username) : id_accomodattion
-    }
-}
 
 function accomodattionLabel(id) {
     const acc = findAccomodattion(id);
-    if (acc != undefined) return `Клиент: ${findCLient(id)}, даты: ${acc.in_date} по ${acc.out_date}`;
+    if (acc != undefined) return `Клиент: ${acc.client_name ? acc.client_name : acc.client_user}, даты: ${acc.in_date} по ${acc.out_date}`;
 }
 
 function findAccomodattion(id_accomodattion) {
@@ -193,9 +186,14 @@ async function onProvisionAdd() {
                             </div>
                         </div>
                     </div>
-                    <div class="row" v-if="accomodattions.length==0">
+                    <div class="row" v-if="accomodattions.length == 0">
                         <div class="col">
                             У вас нет активных проживаний, создать оказание услуг невозможно
+                        </div>
+                    </div>
+                    <div class="row" v-if="accomodattions.length == 0">
+                        <div class="col">
+                           {{ provisionToAdd.accomodattion }}
                         </div>
                     </div>
                     <div class="row">

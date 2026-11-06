@@ -7,7 +7,7 @@ import ErrorModal from '@/components/ErrorModal.vue';
 import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
 import CreateProvision from '@/components/CreateProvision.vue';
-
+import CreateStatistics from '@/components/CreateStatistics.vue';
 
 const profileStore = useProfileStore();
 const {
@@ -18,7 +18,6 @@ const {
 
 let provisionModal = ref(false)
 
-const provisionToAdd = ref({});
 const provisionToEdit = ref({});
 const selectedProvision = ref({})
 
@@ -34,16 +33,20 @@ let isError = ref(false)
 let textOfError = ref()
 
 
-const source = computed(() => {
-    return provisionToEdit.value.id
-        ? provisionToEdit.value
-        : provisionToAdd.value
-})
+const isFormStats = ref(false)
+
+window.onload = function () {
+    const statsModal = document.getElementById('statsModal')
+
+    statsModal.addEventListener('hidden.bs.modal', function () {
+        isFormStats.value = false
+    })
+}
 
 const totalPrice = computed(() => {
-    if (source.value.quantity != undefined && source.value.service) {
-        const quantity = source.value.quantity
-        const service = services.value.find(x => x.id === source.value.service)
+    if (provisionToEdit.value.quantity != undefined && provisionToEdit.value.service) {
+        const quantity = provisionToEdit.value.quantity
+        const service = services.value.find(x => x.id === provisionToEdit.value.service)
         return quantity * service.price
     }
     return 0
@@ -125,7 +128,7 @@ async function fetchAccomodattion() {
 
 async function fetchEmployees() {
     const r = await axios.get("/api/users/?role=1", { params: { all: 1 } })
-    employees.value = r.data;
+    employees.value = r?.data;
 }
 
 async function fetchClients() {
@@ -182,7 +185,13 @@ function label(name) {
 
     <div class="mycontainer">
 
-        <h1>Оказание услуг</h1>
+        <div style="position:relative ">
+            <h1>Оказание услуг</h1>
+            <button class="btn btn-info" v-if="isSuperUser" @click="isFormStats = true"
+                style="position:absolute; top: 0; right: 0;">
+                <i class="bi bi-graph-up"></i>
+            </button>
+        </div>
 
         <div class="objects">
             <button type="button" class="btn btn-warning" @click="provisionModal = true">
@@ -197,7 +206,9 @@ function label(name) {
                     <tr>
                         <th scope="col">Услуга</th>
                         <th scope="col">Проживание</th>
-                        <th scope="col">Управление</th>
+                        <th scope="col">Количество</th>
+                        <th scope="col">Цена</th>
+                        <th v-if="thisCanBeAddAndChanged" scope="col">Управление</th>
                         <th v-if="isSuperUser" scope="col">Автор</th>
                     </tr>
                 </thead>
@@ -208,9 +219,10 @@ function label(name) {
                             provision.accomodattion_info.room_number }} с даты
                             {{ provision.accomodattion_info.in_date }} по {{ provision.accomodattion_info.out_date }}
                         </td>
-                        <td>
-                            <div class="buttons-div"
-                                v-if="(provision.user === id || isSuperUser) && thisCanBeAddAndChanged">
+                        <td>{{ provision.quantity }}</td>
+                        <td>{{ provision.price }}</td>
+                        <td v-if="(provision.user === id || isSuperUser) && thisCanBeAddAndChanged">
+                            <div class="buttons-div">
                                 <button class="btn btn-success" @click="onProvisionEditClick(provision)"
                                     data-bs-toggle="modal" data-bs-target="#editProvisionModal">
                                     <i class="bi bi-pen-fill"></i>
@@ -233,7 +245,7 @@ function label(name) {
                     </li>
 
                     <li @click="page = page - 1" class="page-item" v-if="page - 1 > 0"><a class="page-link">{{ page - 1
-                            }}</a>
+                    }}</a>
                     </li>
                     <li class="page-item" v-if="page > 0"><span href="" class="page-link">{{ page }}</span></li>
                     <li @click="page = page + 1" class="page-item" v-if="page + 1 < pagesCount"><a class="page-link">{{
@@ -254,7 +266,7 @@ function label(name) {
 
         </div>
 
-
+        <CreateStatistics v-if="isFormStats" v-model="isFormStats" :type="'provision'" />
 
 
         <div class="modal fade" id="editProvisionModal" tabindex="-1">

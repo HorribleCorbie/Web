@@ -7,8 +7,8 @@ import CreateAccommodattion from '@/components/CreateAccommodattion.vue';
 import ErrorModal from '@/components/ErrorModal.vue';
 import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
+import CreateStatistics from '@/components/CreateStatistics.vue';
 
-const accomodattionToAdd = ref({})
 const accomodattionToEdit = ref({})
 const selectedAccomodattion = ref([])
 
@@ -29,15 +29,18 @@ const {
     userName
 } = storeToRefs(profileStore)
 
+const isFormStats = ref(false)
 
-const source = computed(() => {
-    return accomodattionToEdit.value.id
-        ? accomodattionToEdit.value
-        : accomodattionToAdd.value
-})
+window.onload = function () {
+    const statsModal = document.getElementById('statsModal')
+
+    statsModal.addEventListener('hidden.bs.modal', function () {
+        isFormStats.value = false
+    })
+}
 
 const nights = computed(() => {
-    const { in_date, out_date } = source.value || {};
+    const { in_date, out_date } = accomodattionToEdit.value || {};
     if (!in_date || !out_date) return 0;
     const diff = Math.round((new Date(out_date) - new Date(in_date)) / 86400000);
     const result = diff + 1;
@@ -45,8 +48,8 @@ const nights = computed(() => {
 });
 
 const totalPrice = computed(() => {
-    const roomId = source.value?.room;
-    const { in_date, out_date } = source.value || {};
+    const roomId = accomodattionToEdit.value?.room;
+    const { in_date, out_date } = accomodattionToEdit.value || {};
     const room = rooms.value.find(r => r.id === roomId);
     if (!room || nights.value <= 0 || !in_date || !out_date) return 0;
     return room.price * nights.value;
@@ -155,7 +158,15 @@ function client_label(name) {
 
     <div class="mycontainer">
 
-        <h1>Проживания</h1>
+
+        <div style="position:relative ">
+            <h1>Проживания</h1>
+            <button class="btn btn-info" v-if="isSuperUser" @click="isFormStats = true"
+                style="position:absolute; top: 0; right: 0;">
+                <i class="bi bi-graph-up"></i>
+            </button>
+        </div>
+
         <div class="objects">
             <button type="button" class="btn btn-warning" @click="accomodattionModal = true">
                 Добавить проживание
@@ -171,7 +182,7 @@ function client_label(name) {
                         <th scope="col">Дата заселения</th>
                         <th scope="col">Дата выезда</th>
                         <th scope="col">Клиент</th>
-                        <th scope="col">Управление</th>
+                        <th v-if="thisCanBeAddAndChanged" scope="col">Управление</th>
                         <th v-if="isSuperUser" scope="col">Автор</th>
                     </tr>
                 </thead>
@@ -181,9 +192,8 @@ function client_label(name) {
                         <td>{{ accomodattion.in_date }}</td>
                         <td>{{ accomodattion.out_date }}</td>
                         <td>{{ client_label(accomodattion) }}</td>
-                        <td>
-                            <div class="buttons-div"
-                                v-if="(accomodattion.user === id || isSuperUser) && thisCanBeAddAndChanged">
+                        <td v-if="(accomodattion.user === id || isSuperUser) && thisCanBeAddAndChanged">
+                            <div class="buttons-div">
                                 <button class="btn btn-success" @click="onAccomodattionEditClick(accomodattion)"
                                     data-bs-toggle="modal" data-bs-target="#editAccomodattionModal">
                                     <i class="bi bi-pen-fill"></i>
@@ -205,18 +215,18 @@ function client_label(name) {
                     </li>
 
                     <li @click="page = page - 1" class="page-item" v-if="page - 1 > 0"><a class="page-link">{{ page - 1
-                    }}</a>
+                            }}</a>
                     </li>
                     <li class="page-item" v-if="page > 0"><span href="" class="page-link">{{ page }}</span></li>
                     <li @click="page = page + 1" class="page-item" v-if="page + 1 < pagesCount"><a class="page-link">{{
                         page + 1
-                    }}</a></li>
+                            }}</a></li>
                     <li @click="page = page + 2" class="page-item" v-if="page + 2 < pagesCount"><a class="page-link">{{
                         page + 2
-                    }}</a></li>
+                            }}</a></li>
                     <li @click="page = page + 3" class="page-item" v-if="page + 3 < pagesCount"><a class="page-link">{{
                         page + 3
-                    }}</a></li>
+                            }}</a></li>
 
                     <li class="page-item" v-if="page < pagesCount">
                         <a class="page-link" href="#" @click="page += 1">Next</a>
@@ -296,6 +306,8 @@ function client_label(name) {
         <CreateAccommodattion v-if="accomodattionModal" v-model="accomodattionModal"
             :clients="(thisCanBeAddAndChanged) ? clients : [{ id: id, username: userName }]" :rooms="rooms"
             @success="fetchAccomodattion" />
+
+            <CreateStatistics v-if="isFormStats" v-model="isFormStats" :type="'accomodattion'"/>
 
         <ErrorModal v-if="isError" v-model="isError" :textOfError="textOfError" />
 

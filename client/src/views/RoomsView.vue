@@ -6,7 +6,7 @@ import SearchFilters from '@/components/SearchFilters.vue'
 import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
 import CreateAccommodattion from '@/components/CreateAccommodattion.vue';
-
+import CreateStatistics from '@/components/CreateStatistics.vue';
 
 const accomodattionModal = ref(false)
 
@@ -39,6 +39,7 @@ const newDownloadedImages = ref({})
 const selectedImages = ref([])
 
 let currentImage = ref([])
+const isFormStats = ref(false)
 
 window.onload = function () {
   var myModal = document.getElementById('imageModal')
@@ -51,6 +52,12 @@ window.onload = function () {
 
   roomModal.addEventListener('hidden.bs.modal', function () {
     closeAddModal()
+  })
+
+  var statsModal = document.getElementById('statsModal')
+
+  statsModal.addEventListener('hidden.bs.modal', function () {
+    isFormStats.value = false
   })
 }
 
@@ -210,7 +217,12 @@ function label(name){
 
   <div class="mycontainer">
 
-    <h1>Номера отеля</h1>
+    <div style="position:relative ">
+      <h1>Номера отеля</h1>
+      <button class="btn btn-info" v-if="isSuperUser"  @click="isFormStats = true" style="position:absolute; top: 0; right: 0;" >
+        <i class="bi bi-graph-up"></i>
+      </button>
+    </div>
 
     <div class="objects">
       <button type="button" v-if="thisCanBeAddAndChanged && role != 2" class="btn btn-warning" data-bs-toggle="modal"
@@ -290,6 +302,7 @@ function label(name){
     <CreateAccommodattion v-if="accomodattionModal" v-model="accomodattionModal"
       :clients="(thisCanBeAddAndChanged) ? clients : [{ id: id, username: userName }]" :rooms="[selectedRoom]" />
 
+    <CreateStatistics v-if="isFormStats" v-model="isFormStats" :type="'rooms'"/>
 
     <div class="modal fade" id="editRoomModal" tabindex="-1">
       <div class="modal-dialog">

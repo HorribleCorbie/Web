@@ -7,6 +7,7 @@ const props = defineProps({
 })
 const isError = defineModel({ type: Boolean, default: false })
 </script>
+
 <template>
     <transition name="modal" v-if="isError">
         <div class="modal-mask">

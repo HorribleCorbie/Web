@@ -6,17 +6,18 @@ import SearchFilters from '@/components/SearchFilters.vue'
 import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
 import CreateProvision from '@/components/CreateProvision.vue';
+import CreateStatistics from '@/components/CreateStatistics.vue';
 
 let provisionModal = ref(false)
 
-const filteredService = ref([])
 
 const profileStore = useProfileStore();
 const {
   isSuperUser,
   id,
   thisCanBeAddAndChanged,
-  role
+  role,
+  userName
 } = storeToRefs(profileStore)
 
 const activeAccomodattions = ref([])
@@ -62,16 +63,23 @@ function clearEditServiceForm() {
   }
 }
 
+const isFormStats = ref(false)
 
-onMounted(() => {
-  const serviceModel = document.getElementById('serviceModel')
+window.onload = function () {
+   const serviceModel = document.getElementById('serviceModel')
 
   serviceModel?.addEventListener('hidden.bs.modal', clearServiceForm)
 
   const editServiceModel = document.getElementById('editServiceModel')
 
   editServiceModel?.addEventListener('hidden.bs.modal', clearEditServiceForm)
-})
+
+  const statsModal = document.getElementById('statsModal')
+
+  statsModal.addEventListener('hidden.bs.modal', function () {
+    isFormStats.value = false
+  })
+}
 
 async function serviceAddPictureChange() {
   serviceAddPictureURL.value = URL.createObjectURL(serviceAddPicture.value.files[0])
@@ -118,13 +126,13 @@ async function onServiceAdd() {
 
 
 async function fetchAccomodattion() {
-  const s = await axios.get("/api/accomodattion/", { params: { actual: 1 , all: 1} })
+  const s = await axios.get("/api/accomodattion/", { params: { actual: 1, all: 1 } })
   activeAccomodattions.value = s.data
 }
 
 async function fetchEmployees() {
   const r = await axios.get("/api/users/?role=1", { params: { all: 1 } })
-  employees.value = r.data;
+  employees.value = r?.data;
 }
 
 async function fetchClients() {
@@ -172,8 +180,8 @@ watch(page, () => {
   fetchServices();
 })
 
-function label(name){
-  return name.user_first_name ? name.user_first_name: name.user_name
+function label(name) {
+  return name.user_first_name ? name.user_first_name : name.user_name
 }
 </script>
 
@@ -181,7 +189,12 @@ function label(name){
 
   <div class="mycontainer">
 
-    <h1>Услуги</h1>
+    <div style="position:relative ">
+      <h1>Услуги</h1>
+      <button class="btn btn-info" v-if="isSuperUser" @click="isFormStats = true" style="position:absolute; top: 0; right: 0;" >
+            <i class="bi bi-graph-up"></i>
+      </button>
+    </div>
 
     <div class="objects">
       <button type="button" v-if="thisCanBeAddAndChanged && role != 2" class="btn btn-warning" data-bs-toggle="modal"
@@ -204,7 +217,7 @@ function label(name){
         </thead>
         <tbody>
           <tr v-for="service in services">
-            <th scope="row">{{ service.name }}</th>
+            <td>{{ service.name }}</td>
             <td>{{ service.price }}</td>
             <td v-show="service.picture"><img :src="service.picture" type="button"
                 @click="selectedImage = service.picture" data-bs-toggle="modal" data-bs-target="#imageModal"
@@ -226,7 +239,7 @@ function label(name){
                 </button>
               </div>
             </td>
-            <td v-if="isSuperUser">{{ label(service)}}</td>
+            <td v-if="isSuperUser">{{ label(service) }}</td>
           </tr>
         </tbody>
       </table>
@@ -254,147 +267,148 @@ function label(name){
       </nav>
     </div>
 
-      <CreateProvision v-model="provisionModal" :services="[selectedService]" :accomodattions="activeAccomodattions"
-        :clients="(thisCanBeAddAndChanged) ? clients : [{ id: id, username: userName }]"
-        :employees="thisCanBeAddAndChanged ? employees : undefined" />
+    <CreateProvision v-model="provisionModal" :services="[selectedService]" :accomodattions="activeAccomodattions"
+      :clients="(thisCanBeAddAndChanged) ? clients : [{ id: id, username: userName }]"
+      :employees="thisCanBeAddAndChanged ? employees : undefined" />
 
-      <div class="modal fade" id="editServiceModal" tabindex="-1">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h1 class="modal-title fs-5">
-                Изменение услуги
-              </h1>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body objects">
-              <div class="row">
-                <div class="col">
-                  <div class="form-floating">
-                    <input type="text" class="form-control" v-model="serviceToEdit.name" />
-                    <label for="floatingInput">Название</label>
-                  </div>
-                </div>
-                <div class="col">
-                  <div class="form-floating">
-                    <input type="number" min="1" class="form-control" v-model="serviceToEdit.price" />
-                    <label for="floatingInput">Цена</label>
-                  </div>
+      <CreateStatistics v-if="isFormStats" v-model="isFormStats" :type="'service'"/>
+
+    <div class="modal fade" id="editServiceModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5">
+              Изменение услуги
+            </h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body objects">
+            <div class="row">
+              <div class="col">
+                <div class="form-floating">
+                  <input type="text" class="form-control" v-model="serviceToEdit.name" />
+                  <label for="floatingInput">Название</label>
                 </div>
               </div>
-              <div class="row">
-                <div class="col">
-                  <input class="form-control" type="file" ref="serviceUpdatePicture"
-                    @change="serviceUpdatePictureChange">
-                </div>
-                <div class="col-auto">
-                  <img :src="serviceUpdatePictureURL || serviceToEdit.picture" style="max-height: 60px;">
+              <div class="col">
+                <div class="form-floating">
+                  <input type="number" min="1" class="form-control" v-model="serviceToEdit.price" />
+                  <label for="floatingInput">Цена</label>
                 </div>
               </div>
             </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-danger" data-bs-dismiss="modal">
-                Закрыть
-              </button>
-              <button data-bs-dismiss="modal" type="button" class="btn btn-success" @click="onUpdateService">
-                Сохранить
-              </button>
+            <div class="row">
+              <div class="col">
+                <input class="form-control" type="file" ref="serviceUpdatePicture" @change="serviceUpdatePictureChange">
+              </div>
+              <div class="col-auto">
+                <img :src="serviceUpdatePictureURL || serviceToEdit.picture" style="max-height: 60px;">
+              </div>
             </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-danger" data-bs-dismiss="modal">
+              Закрыть
+            </button>
+            <button data-bs-dismiss="modal" type="button" class="btn btn-success" @click="onUpdateService">
+              Сохранить
+            </button>
           </div>
         </div>
       </div>
-
-
-      <div class="modal fade" id="serviceModel" tabindex="-1">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h1 class="modal-title fs-5">
-                Добавление услуги
-              </h1>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body objects">
-              <div class="row">
-                <div class="col">
-                  <div class="form-floating">
-                    <input type="text" class="form-control" v-model="serviceToAdd.name" />
-                    <label for="floatingInput">Название</label>
-                  </div>
-                </div>
-                <div class="col">
-                  <div class="form-floating">
-                    <input type="number" min="1" class="form-control" v-model="serviceToAdd.price" />
-                    <label for="floatingInput">Цена</label>
-                  </div>
-                </div>
-              </div>
-              <div class="row">
-                <div class="col">
-                  <input class="form-control" type="file" ref="serviceAddPicture" @change="serviceAddPictureChange">
-                </div>
-                <div class="col-auto">
-                  <img :src="serviceAddPictureURL" style="max-height: 60px;">
-                </div>
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-danger" data-bs-dismiss="modal">
-                Закрыть
-              </button>
-              <button data-bs-dismiss="modal" type="button" class="btn btn-success" @click="onServiceAdd">
-                Сохранить
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal fade" id="imageModal" tabindex="-1">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body objects">
-              <img :src="selectedImage">
-            </div>
-            <div class="modal-footer">
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal fade" id="deleteModal" tabindex="-1">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h1 class="modal-title fs-5">
-                Удаление
-              </h1>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body objects ">
-              <div class="row">
-                <div class="col">
-                  Вы точно хотите удалить услугу {{ selectedService.name }}?
-                </div>
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-success" data-bs-dismiss="modal">
-                Закрыть
-              </button>
-              <button data-bs-dismiss="modal" type="button" class="btn btn-danger"
-                @click="onRemoveClick(selectedService)">
-                Удалить
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
     </div>
+
+
+    <div class="modal fade" id="serviceModel" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5">
+              Добавление услуги
+            </h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body objects">
+            <div class="row">
+              <div class="col">
+                <div class="form-floating">
+                  <input type="text" class="form-control" v-model="serviceToAdd.name" />
+                  <label for="floatingInput">Название</label>
+                </div>
+              </div>
+              <div class="col">
+                <div class="form-floating">
+                  <input type="number" min="1" class="form-control" v-model="serviceToAdd.price" />
+                  <label for="floatingInput">Цена</label>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col">
+                <input class="form-control" type="file" ref="serviceAddPicture" @change="serviceAddPictureChange">
+              </div>
+              <div class="col-auto">
+                <img :src="serviceAddPictureURL" style="max-height: 60px;">
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-danger" data-bs-dismiss="modal">
+              Закрыть
+            </button>
+            <button data-bs-dismiss="modal" type="button" class="btn btn-success" @click="onServiceAdd">
+              Сохранить
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="imageModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body objects">
+            <img :src="selectedImage">
+          </div>
+          <div class="modal-footer">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5">
+              Удаление
+            </h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body objects ">
+            <div class="row">
+              <div class="col">
+                Вы точно хотите удалить услугу {{ selectedService.name }}?
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-success" data-bs-dismiss="modal">
+              Закрыть
+            </button>
+            <button data-bs-dismiss="modal" type="button" class="btn btn-danger"
+              @click="onRemoveClick(selectedService)">
+              Удалить
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
 
 </template>
 

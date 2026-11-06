@@ -1,3 +1,4 @@
+from django.db.models.aggregates import Avg, Count, Max, Min
 from rest_framework import mixins
 from django.contrib.auth.models import User
 from rest_framework.decorators import action
@@ -29,6 +30,7 @@ class RoomsViewset(mixins.CreateModelMixin,
         
         return qs
     
+    
     @action(detail=False, url_path="authors", methods=['get'])
     def authors(self, request):
         qs = (User.objects
@@ -37,6 +39,23 @@ class RoomsViewset(mixins.CreateModelMixin,
             .distinct()
             .order_by('username'))
         return Response(list(qs))
+    
+    class StatsSerializer (serializers.Serializer):
+        count = serializers. IntegerField()
+        avg = serializers.FloatField()
+        max = serializers. IntegerField()
+        min = serializers. IntegerField()
+    
+    
+    @action(detail=False, methods=["GET"], url_path="stats")
+    def get_stats (self, request, *args,**kwargs):
+        stats = Room.objects.aggregate(
+            count=Count("*"),
+            avg=Avg("price"),
+            max=Max("id"),
+            min=Min("id"),)
+        serializer = self.StatsSerializer (instance=stats)
+        return Response (serializer.data)
     
     def perform_create(self, serializer):
         room = serializer.save()
@@ -74,6 +93,22 @@ class ServicesViewset(mixins.CreateModelMixin,
                       GenericViewSet):
     queryset= Service.objects.select_related('user')
     serializer_class = ServiceSerializer
+
+    class StatsSerializer (serializers.Serializer):
+        count = serializers. IntegerField()
+        avg = serializers.FloatField()
+        max = serializers. IntegerField()
+        min = serializers. IntegerField()
+    
+    @action(detail=False, methods=["GET"], url_path="stats")
+    def get_stats (self, request, *args,**kwargs):
+        stats = Service.objects.aggregate(
+            count=Count("*"),
+            avg=Avg("price"),
+            max=Max("id"),
+            min=Min("id"),)
+        serializer = self.StatsSerializer (instance=stats)
+        return Response (serializer.data)
     
     @action(detail=False, url_path="authors", methods=['get'])
     def authors(self, request):
@@ -105,6 +140,22 @@ class AccomodattionViewset(mixins.CreateModelMixin,
         'user'
     )
     serializer_class = AccomodattionSerializer
+    
+    class StatsSerializer (serializers.Serializer):
+        count = serializers. IntegerField()
+        avg = serializers.FloatField()
+        max = serializers. IntegerField()
+        min = serializers. IntegerField()
+    
+    @action(detail=False, methods=["GET"], url_path="stats")
+    def get_stats (self, request, *args,**kwargs):
+        stats = Accomodattion.objects.aggregate(
+            count=Count("*"),
+            avg=Avg("price"),
+            max=Max("id"),
+            min=Min("id"),)
+        serializer = self.StatsSerializer (instance=stats)
+        return Response (serializer.data)
     
     @action(detail=False, url_path="authors", methods=['get'])
     def authors(self, request):
@@ -155,6 +206,24 @@ class ProvisionViewset(mixins.CreateModelMixin,
     )
     serializer_class = ProvisionSerializer
     
+    
+    class StatsSerializer (serializers.Serializer):
+        count = serializers. IntegerField()
+        avg = serializers.FloatField()
+        max = serializers. IntegerField()
+        min = serializers. IntegerField()
+    
+    @action(detail=False, methods=["GET"], url_path="stats")
+    def get_stats (self, request, *args,**kwargs):
+        stats = Provision.objects.aggregate(
+            count=Count("*"),
+            avg=Avg("id"),
+            max=Max("id"),
+            min=Min("id"),)
+        serializer = self.StatsSerializer (instance=stats)
+        return Response (serializer.data)
+        
+    
     @action(detail=False, url_path="authors", methods=['get'])
     def authors(self, request):
         qs = (User.objects
@@ -194,6 +263,9 @@ class UserViewset(mixins.CreateModelMixin,
     def get_queryset(self):
         queryset = super().get_queryset()
         role = self.request.query_params.get('role')
+        
+        if(role==Profile.Role.client):
+            return queryset.filter(username=self.request.user.get_username)
 
         if role:
             queryset = queryset.filter(profile__role=role)
