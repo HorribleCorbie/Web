@@ -1,10 +1,12 @@
 from django.db.models.aggregates import Avg, Count, Max, Min
+from django.db.models.functions import Lower
 from rest_framework import mixins
 from django.contrib.auth.models import User
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
 from rest_framework.viewsets import GenericViewSet
+from django.db.models import Q
 from django.contrib.auth import logout as django_logout
 from django.contrib.auth import login as django_login
 from django.contrib.auth import authenticate
@@ -27,6 +29,16 @@ class RoomsViewset(mixins.CreateModelMixin,
         
         if (author := p.get('user')) and author.isdigit():
             qs = qs.filter(user_id=author)
+            
+        if (num := p.get('number')) and num.isdigit():
+            qs = qs.filter(number=num)
+        
+        if (des := p.get('description')):
+            qs = qs.annotate(description_lower=Lower('description')).filter(description_lower__contains=des.lower())
+        
+        if (price := p.get('price')) and price.isdigit():
+            qs = qs.filter(price__lte=price).order_by('price')
+        
         
         return qs
     
@@ -125,6 +137,12 @@ class ServicesViewset(mixins.CreateModelMixin,
         
         if (author := p.get('user')) and author.isdigit():
             qs = qs.filter(user_id=author)
+            
+        if (name := p.get('name')):
+            qs = qs.annotate(name_lower=Lower('name')).filter(name_lower__contains=name.lower())
+                
+        if (price := p.get('price')) and price.isdigit():
+            qs = qs.filter(price__lte=price).order_by('price')
         
         return qs
 
@@ -168,27 +186,51 @@ class AccomodattionViewset(mixins.CreateModelMixin,
     
     def get_queryset(self):
         qs = super().get_queryset()
-        
         p = self.request.query_params
-        
+        user = self.request.user
+
+        if not user.is_superuser:
+            role = user.profile.role
+
+            if role == Profile.Role.client:
+                qs = qs.filter(client=user)
+            else:
+                qs = qs.filter(user=user)
+
         if (author := p.get('user')) and author.isdigit():
-            qs = qs.filter(user_id=author)
-            
+            if user.is_superuser:
+                qs = qs.filter(user_id=author)
+
         if p.get('actual') == '1':
             today = timezone.localdate()
             qs = qs.filter(
                 in_date__lte=today,
                 out_date__gte=today
             )
+
+        if (num := p.get('number')) and num.isdigit():
+            qs = qs.filter(room__number=num)
+
+        if (date := p.get('in_date')):
+            qs = qs.filter(in_date__gte=date)
+
+        if (date := p.get('out_date')):
+            qs = qs.filter(out_date__lte=date)
+
+        if (price := p.get('price')) and price.isdigit():
+            qs = qs.filter(price__lte=price)
+
+        if (client := p.get('client')):
+            qs = qs.annotate(
+                    first_name_lower=Lower('client__first_name'),
+                    username_lower=Lower('client__username')
+                ).filter(
+                    Q(first_name_lower__contains=client.lower()) |
+                    Q(first_name_lower='') & Q(username_lower__contains=client.lower())
+                )
+
+        return qs
         
-        if self.request.user.is_superuser:
-            return qs
-        
-        role = self.request.user.profile.role
-        if(role==Profile.Role.client):
-            return qs.filter(client=self.request.user)
-        
-        return qs.filter(user=self.request.user)
         
 
 class ProvisionViewset(mixins.CreateModelMixin, 
@@ -235,20 +277,55 @@ class ProvisionViewset(mixins.CreateModelMixin,
     
     def get_queryset(self):
         qs = super().get_queryset()
-        
         p = self.request.query_params
-                
+        user = self.request.user
+
+        if not user.is_superuser:
+            role = user.profile.role
+
+            if role == Profile.Role.client:
+                qs = qs.filter(accomodattion__client=user)
+            else:
+                qs = qs.filter(user=user)
+
         if (author := p.get('user')) and author.isdigit():
-            qs = qs.filter(user_id=author)
-        
-        if self.request.user.is_superuser:
-            return qs
-        
-        role = self.request.user.profile.role
-        if(role==Profile.Role.client):
-            return qs.filter(accomodattion__client=self.request.user)
-        
-        return qs.filter(user=self.request.user)
+            if user.is_superuser:
+                qs = qs.filter(user_id=author)
+
+        if (service := p.get('service')):
+                qs = qs.annotate(
+                service__name_lower=Lower('service__name')
+            ).filter(service__name_lower__icontains=service)
+
+        if (quantity := p.get('quantity')) and quantity.isdigit():
+            qs = qs.filter(quantity=quantity)
+
+        if (price := p.get('price')) and price.isdigit():
+            qs = qs.filter(price__lte=price)
+
+        if (num := p.get('number')) and num.isdigit():
+            qs = qs.filter(accomodattion__room__number=num)
+
+        if (date := p.get('in_date')):
+            qs = qs.filter(accomodattion__in_date__gte=date)
+
+        if (date := p.get('out_date')):
+            qs = qs.filter(accomodattion__out_date__lte=date)
+
+        if (client := p.get('client')):
+            qs = qs.annotate(
+                client_first_name_lower=Lower('accomodattion__client__first_name'),
+                client_username_lower=Lower('accomodattion__client__username')
+            ).filter(
+                Q(client_first_name_lower__contains=client.lower()) |
+                (
+                    Q(accomodattion__client__first_name__isnull=True) |
+                    Q(accomodattion__client__first_name='')
+                ) &
+                Q(client_username_lower__contains=client.lower())
+            )
+
+        return qs
 
 
 class UserViewset(mixins.CreateModelMixin, 

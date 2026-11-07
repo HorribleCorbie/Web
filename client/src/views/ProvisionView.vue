@@ -8,6 +8,8 @@ import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
 import CreateProvision from '@/components/CreateProvision.vue';
 import CreateStatistics from '@/components/CreateStatistics.vue';
+import SearchProvision from '@/components/SearchProvision.vue';
+import SearchAccommodattion from '@/components/SearchAccommodattion.vue';
 
 const profileStore = useProfileStore();
 const {
@@ -34,14 +36,6 @@ let textOfError = ref()
 
 
 const isFormStats = ref(false)
-
-window.onload = function () {
-    const statsModal = document.getElementById('statsModal')
-
-    statsModal.addEventListener('hidden.bs.modal', function () {
-        isFormStats.value = false
-    })
-}
 
 const totalPrice = computed(() => {
     if (provisionToEdit.value.quantity != undefined && provisionToEdit.value.service) {
@@ -154,21 +148,38 @@ async function onRemoveClick(provision) {
 const page = ref(1)
 const pageItemsCount = ref(10)
 const authorFilter = ref(null)
+const serviceFilter = ref(null)
+const quantityFilter = ref(null)
+const priceFilter = ref(null)
+
+const clientFilter = ref(null)
+const numberFilter = ref(null)
+const inDateFilter = ref(null)
+const outDateFilter = ref(null)
 
 async function fetchProvision() {
     loading.value = true
     const params = { page: page.value, page_size: pageItemsCount.value }
     if (authorFilter.value) params.user = authorFilter.value
+    if (serviceFilter.value) params.service = serviceFilter.value
+    if (quantityFilter.value) params.quantity = quantityFilter.value
+    if (priceFilter.value) params.price = priceFilter.value
+
+    if (clientFilter.value) params.client = clientFilter.value
+    if (numberFilter.value) params.number = numberFilter.value
+    if (inDateFilter.value) params.in_date = inDateFilter.value
+    if (outDateFilter.value) params.out_date = outDateFilter.value
     const r = await axios.get('/api/provision/', { params })
     provisions.value = r.data.results
     pagesCount.value = Math.max(1, Math.ceil(r.data.count / pageItemsCount.value))
     loading.value = false
 }
 
-watch(authorFilter, () => {
-    if (page.value === 1) fetchProvision()
-    else page.value = 1
-})
+watch([authorFilter, serviceFilter, quantityFilter,
+    priceFilter, clientFilter, numberFilter, inDateFilter, outDateFilter], () => {
+        if (page.value === 1) fetchProvision()
+        else page.value = 1
+    })
 
 const pagesCount = ref()
 
@@ -198,9 +209,13 @@ function label(name) {
                 Добавить оказание услуги
             </button>
             <div v-if="loading">Данные загружаются, подождите...</div>
-            <div v-if="!loading && provisions.length == 0">У вас нет оказанных услуг</div>
             <search-filters v-if="isSuperUser" v-model="authorFilter" :type="'provision'" />
-
+            <SearchProvision v-model:name="serviceFilter" v-model:quantity="quantityFilter"
+                v-model:price="priceFilter" />
+            <div style="text-align: center;">Поиск по проживанию</div>
+            <SearchAccommodattion v-model:client="clientFilter" v-model:in_date="inDateFilter"
+                v-model:number="numberFilter" v-model:out_date="outDateFilter" :needPrice="false" />
+            <div v-if="!loading && provisions.length == 0" style="text-align: center;">У вас нет оказанных услуг</div>
             <table class="table">
                 <thead>
                     <tr>
@@ -245,7 +260,7 @@ function label(name) {
                     </li>
 
                     <li @click="page = page - 1" class="page-item" v-if="page - 1 > 0"><a class="page-link">{{ page - 1
-                    }}</a>
+                            }}</a>
                     </li>
                     <li class="page-item" v-if="page > 0"><span href="" class="page-link">{{ page }}</span></li>
                     <li @click="page = page + 1" class="page-item" v-if="page + 1 < pagesCount"><a class="page-link">{{
@@ -266,7 +281,7 @@ function label(name) {
 
         </div>
 
-        <CreateStatistics v-if="isFormStats" v-model="isFormStats" :type="'provision'" />
+        <CreateStatistics v-model="isFormStats" :type="'provision'" />
 
 
         <div class="modal fade" id="editProvisionModal" tabindex="-1">

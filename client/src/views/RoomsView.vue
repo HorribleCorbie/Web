@@ -7,6 +7,7 @@ import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
 import CreateAccommodattion from '@/components/CreateAccommodattion.vue';
 import CreateStatistics from '@/components/CreateStatistics.vue';
+import SearchRooms from '@/components/SearchRooms.vue';
 
 const accomodattionModal = ref(false)
 
@@ -52,12 +53,6 @@ window.onload = function () {
 
   roomModal.addEventListener('hidden.bs.modal', function () {
     closeAddModal()
-  })
-
-  var statsModal = document.getElementById('statsModal')
-
-  statsModal.addEventListener('hidden.bs.modal', function () {
-    isFormStats.value = false
   })
 }
 
@@ -175,18 +170,24 @@ async function fetchClients() {
 }
 
 const authorFilter = ref(null)
+const numberFilter = ref(null)
+const descriptionFilter = ref(null)
+const priceFilter = ref(null)
 
 async function fetchRooms() {
   loading.value = true
   const params = { page: page.value, page_size: pageItemsCount.value }
   if (authorFilter.value) params.user = authorFilter.value
+  if (numberFilter.value) params.number = numberFilter.value
+  if (descriptionFilter.value) params.description = descriptionFilter.value
+  if (priceFilter.value) params.price = priceFilter.value
   const r = await axios.get('/api/rooms/', { params })
   rooms.value = r.data.results
   pagesCount.value = Math.max(1, Math.ceil(r.data.count / pageItemsCount.value))
   loading.value = false
 }
 
-watch(authorFilter, () => {
+watch([authorFilter, numberFilter, descriptionFilter, priceFilter], () => {
   if (page.value === 1) fetchRooms()
   else page.value = 1
 })
@@ -208,8 +209,8 @@ async function onRemoveClick(room) {
   await fetchRooms();
 }
 
-function label(name){
-  return name.user_first_name ? name.user_first_name: name.user_name
+function label(name) {
+  return name.user_first_name ? name.user_first_name : name.user_name
 }
 </script>
 
@@ -219,7 +220,8 @@ function label(name){
 
     <div style="position:relative ">
       <h1>Номера отеля</h1>
-      <button class="btn btn-info" v-if="isSuperUser"  @click="isFormStats = true" style="position:absolute; top: 0; right: 0;" >
+      <button class="btn btn-info" v-if="isSuperUser" @click="isFormStats = true"
+        style="position:absolute; top: 0; right: 0;">
         <i class="bi bi-graph-up"></i>
       </button>
     </div>
@@ -230,9 +232,11 @@ function label(name){
         Добавить номер
       </button>
       <div v-if="loading">Данные загружаются, подождите...</div>
-      <div v-if="!loading && rooms.length == 0">У вас нет комнат</div>
       <search-filters v-if="isSuperUser" v-model="authorFilter" :type="'rooms'" />
 
+      <SearchRooms v-model:number="numberFilter" v-model:description="descriptionFilter" v-model:price="priceFilter" />
+
+      <div v-if="!loading && rooms.length == 0" style="text-align: center;">У вас нет комнат</div>
       <table class="table">
         <thead>
           <tr>
@@ -302,7 +306,7 @@ function label(name){
     <CreateAccommodattion v-if="accomodattionModal" v-model="accomodattionModal"
       :clients="(thisCanBeAddAndChanged) ? clients : [{ id: id, username: userName }]" :rooms="[selectedRoom]" />
 
-    <CreateStatistics v-if="isFormStats" v-model="isFormStats" :type="'rooms'"/>
+    <CreateStatistics v-model="isFormStats" :type="'rooms'" />
 
     <div class="modal fade" id="editRoomModal" tabindex="-1">
       <div class="modal-dialog">

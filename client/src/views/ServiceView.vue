@@ -7,6 +7,7 @@ import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
 import CreateProvision from '@/components/CreateProvision.vue';
 import CreateStatistics from '@/components/CreateStatistics.vue';
+import SearchService from '@/components/SearchService.vue';
 
 let provisionModal = ref(false)
 
@@ -73,12 +74,6 @@ window.onload = function () {
   const editServiceModel = document.getElementById('editServiceModel')
 
   editServiceModel?.addEventListener('hidden.bs.modal', clearEditServiceForm)
-
-  const statsModal = document.getElementById('statsModal')
-
-  statsModal.addEventListener('hidden.bs.modal', function () {
-    isFormStats.value = false
-  })
 }
 
 async function serviceAddPictureChange() {
@@ -159,17 +154,22 @@ const page = ref(1)
 const pageItemsCount = ref(10)
 const authorFilter = ref(null)
 
+const nameFilter = ref(null)
+const priceFilter = ref(null)
+
 async function fetchServices() {
   loading.value = true
   const params = { page: page.value, page_size: pageItemsCount.value }
   if (authorFilter.value) params.user = authorFilter.value
+  if (nameFilter.value) params.name = nameFilter.value
+  if (priceFilter.value) params.price = priceFilter.value
   const r = await axios.get('/api/service/', { params })
   services.value = r.data.results
   pagesCount.value = Math.max(1, Math.ceil(r.data.count / pageItemsCount.value))
   loading.value = false
 }
 
-watch(authorFilter, () => {
+watch([authorFilter,nameFilter, priceFilter ], () => {
   if (page.value === 1) fetchServices()
   else page.value = 1
 })
@@ -202,9 +202,9 @@ function label(name) {
         Добавить услугу
       </button>
       <div v-if="loading">Данные загружаются, подождите...</div>
-      <div v-if="!loading && services.length == 0">У вас нет услуг</div>
       <search-filters v-if="isSuperUser" v-model="authorFilter" :type="'service'" />
-
+      <SearchService  v-model:name="nameFilter" v-model:price="priceFilter" />
+      <div v-if="!loading && services.length == 0" style="text-align: center;">У вас нет услуг</div>
       <table class="table">
         <thead>
           <tr>
@@ -271,7 +271,8 @@ function label(name) {
       :clients="(thisCanBeAddAndChanged) ? clients : [{ id: id, username: userName }]"
       :employees="thisCanBeAddAndChanged ? employees : undefined" />
 
-      <CreateStatistics v-if="isFormStats" v-model="isFormStats" :type="'service'"/>
+      <CreateStatistics v-model="isFormStats" :type="'service'"/>
+
 
     <div class="modal fade" id="editServiceModal" tabindex="-1">
       <div class="modal-dialog">

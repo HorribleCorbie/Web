@@ -8,6 +8,7 @@ import ErrorModal from '@/components/ErrorModal.vue';
 import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
 import CreateStatistics from '@/components/CreateStatistics.vue';
+import SearchAccommodattion from '@/components/SearchAccommodattion.vue';
 
 const accomodattionToEdit = ref({})
 const selectedAccomodattion = ref([])
@@ -30,14 +31,6 @@ const {
 } = storeToRefs(profileStore)
 
 const isFormStats = ref(false)
-
-window.onload = function () {
-    const statsModal = document.getElementById('statsModal')
-
-    statsModal.addEventListener('hidden.bs.modal', function () {
-        isFormStats.value = false
-    })
-}
 
 const nights = computed(() => {
     const { in_date, out_date } = accomodattionToEdit.value || {};
@@ -123,18 +116,28 @@ async function onRemoveClick(accomodattion) {
 const page = ref(1)
 const pageItemsCount = ref(10)
 const authorFilter = ref(null)
+const numberFilter = ref(null)
+const inDateFilter = ref(null)
+const outDateFilter = ref(null)
+const clientFilter = ref(null)
+const priceFilter = ref(null)
 
 async function fetchAccomodattion() {
     loading.value = true
     const params = { page: page.value, page_size: pageItemsCount.value }
     if (authorFilter.value) params.user = authorFilter.value
+    if (numberFilter.value) params.number = numberFilter.value
+    if (inDateFilter.value) params.in_date = inDateFilter.value
+    if (outDateFilter.value) params.out_date = outDateFilter.value
+    if (clientFilter.value) params.client = clientFilter.value
+    if (priceFilter.value) params.price = priceFilter.value
     const r = await axios.get('/api/accomodattion/', { params })
     accomodattions.value = r.data.results
     pagesCount.value = Math.max(1, Math.ceil(r.data.count / pageItemsCount.value))
     loading.value = false
 }
 
-watch(authorFilter, () => {
+watch([authorFilter, numberFilter, inDateFilter, outDateFilter, clientFilter, priceFilter], () => {
     if (page.value === 1) fetchAccomodattion()
     else page.value = 1
 })
@@ -172,15 +175,18 @@ function client_label(name) {
                 Добавить проживание
             </button>
             <div v-if="loading">Данные загружаются, подождите...</div>
-            <div v-if="!loading && accomodattions.length == 0">У вас нет проживаний</div>
             <search-filters v-if="isSuperUser" v-model="authorFilter" :type="'accomodattion'" />
+            <SearchAccommodattion v-model:client="clientFilter" v-model:in_date="inDateFilter"
+                v-model:number="numberFilter" v-model:out_date="outDateFilter" v-model:price="priceFilter" />
 
+            <div v-if="!loading && accomodattions.length == 0" style="text-align: center;">У вас нет проживаний</div>
             <table class="table">
                 <thead>
                     <tr>
                         <th scope="col">Номер комнаты</th>
                         <th scope="col">Дата заселения</th>
                         <th scope="col">Дата выезда</th>
+                        <th scope="col">Сумма</th>
                         <th scope="col">Клиент</th>
                         <th v-if="thisCanBeAddAndChanged" scope="col">Управление</th>
                         <th v-if="isSuperUser" scope="col">Автор</th>
@@ -191,6 +197,7 @@ function client_label(name) {
                         <td>{{ accomodattion.room_number }}</td>
                         <td>{{ accomodattion.in_date }}</td>
                         <td>{{ accomodattion.out_date }}</td>
+                        <td>{{ accomodattion.price }}</td>
                         <td>{{ client_label(accomodattion) }}</td>
                         <td v-if="(accomodattion.user === id || isSuperUser) && thisCanBeAddAndChanged">
                             <div class="buttons-div">
@@ -307,7 +314,7 @@ function client_label(name) {
             :clients="(thisCanBeAddAndChanged) ? clients : [{ id: id, username: userName }]" :rooms="rooms"
             @success="fetchAccomodattion" />
 
-            <CreateStatistics v-if="isFormStats" v-model="isFormStats" :type="'accomodattion'"/>
+        <CreateStatistics v-model="isFormStats" :type="'accomodattion'" />
 
         <ErrorModal v-if="isError" v-model="isError" :textOfError="textOfError" />
 

@@ -51,7 +51,7 @@ h1 {
 
 .search-div{
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 10px;
 }
 

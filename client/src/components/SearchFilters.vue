@@ -32,10 +32,10 @@ function onInput() {
 }
 
 const props = defineProps({
-    type: {
-        type: String,
-        required: true
-    }
+  type: {
+    type: String,
+    required: true
+  }
 })
 
 onBeforeMount(async () => {
@@ -53,7 +53,8 @@ onBeforeMount(async () => {
         @click="clearAuthor">✕</button>
     </div>
 
-    <ul v-if="isOpen" class="dropdown-menu show w-100" style="max-height: 200px; overflow-y: auto; z-index: 1000;">
+    <ul v-if="isOpen" class="dropdown-menu show w-100 position-absolute top-100 start-0 mt-1"
+      style="max-height: 200px; overflow-y: auto; z-index: 1000;">
       <li v-if="filteredAuthors.length === 0">
         <span class="dropdown-item text-muted">Ничего не найдено</span>
       </li>
