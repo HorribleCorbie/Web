@@ -212,6 +212,26 @@ async function onRemoveClick(room) {
 function label(name) {
   return name.user_first_name ? name.user_first_name : name.user_name
 }
+
+function exportExel() {
+  axios({
+    url: '/api/rooms/export',
+    method: 'GET',
+    responseType: 'blob',
+  }).then((response) => {
+    const href = URL.createObjectURL(response.data)
+
+    const link = document.createElement('a');
+    link.href = href;
+    link.setAttribute('download', 'Report.xlsx'); 
+    document.body.appendChild(link);
+    link.click();
+
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
+  });
+}
+
 </script>
 
 <template>
@@ -223,6 +243,9 @@ function label(name) {
       <button class="btn btn-info" v-if="isSuperUser" @click="isFormStats = true"
         style="position:absolute; top: 0; right: 0;">
         <i class="bi bi-graph-up"></i>
+      </button>
+      <button class="btn btn-info" v-if="isSuperUser" @click="exportExel()" style="position:absolute; top: 0; left: 0;">
+        <i class="bi bi-arrow-down-square"></i>
       </button>
     </div>
 

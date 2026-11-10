@@ -67,7 +67,7 @@ function clearEditServiceForm() {
 const isFormStats = ref(false)
 
 window.onload = function () {
-   const serviceModel = document.getElementById('serviceModel')
+  const serviceModel = document.getElementById('serviceModel')
 
   serviceModel?.addEventListener('hidden.bs.modal', clearServiceForm)
 
@@ -169,7 +169,7 @@ async function fetchServices() {
   loading.value = false
 }
 
-watch([authorFilter,nameFilter, priceFilter ], () => {
+watch([authorFilter, nameFilter, priceFilter], () => {
   if (page.value === 1) fetchServices()
   else page.value = 1
 })
@@ -183,6 +183,25 @@ watch(page, () => {
 function label(name) {
   return name.user_first_name ? name.user_first_name : name.user_name
 }
+
+function exportExel() {
+  axios({
+    url: '/api/service/export',
+    method: 'GET',
+    responseType: 'blob',
+  }).then((response) => {
+    const href = URL.createObjectURL(response.data)
+
+    const link = document.createElement('a');
+    link.href = href;
+    link.setAttribute('download', 'Report.xlsx');
+    document.body.appendChild(link);
+    link.click();
+
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
+  });
+}
 </script>
 
 <template>
@@ -191,8 +210,12 @@ function label(name) {
 
     <div style="position:relative ">
       <h1>Услуги</h1>
-      <button class="btn btn-info" v-if="isSuperUser" @click="isFormStats = true" style="position:absolute; top: 0; right: 0;" >
-            <i class="bi bi-graph-up"></i>
+      <button class="btn btn-info" v-if="isSuperUser" @click="isFormStats = true"
+        style="position:absolute; top: 0; right: 0;">
+        <i class="bi bi-graph-up"></i>
+      </button>
+      <button class="btn btn-info" v-if="isSuperUser" @click="exportExel()" style="position:absolute; top: 0; left: 0;">
+        <i class="bi bi-arrow-down-square"></i>
       </button>
     </div>
 
@@ -203,7 +226,7 @@ function label(name) {
       </button>
       <div v-if="loading">Данные загружаются, подождите...</div>
       <search-filters v-if="isSuperUser" v-model="authorFilter" :type="'service'" />
-      <SearchService  v-model:name="nameFilter" v-model:price="priceFilter" />
+      <SearchService v-model:name="nameFilter" v-model:price="priceFilter" />
       <div v-if="!loading && services.length == 0" style="text-align: center;">У вас нет услуг</div>
       <table class="table">
         <thead>
@@ -254,11 +277,11 @@ function label(name) {
           </li>
           <li class="page-item" v-if="page > 0"><span href="" class="page-link">{{ page }}</span></li>
           <li @click="page = page + 1" class="page-item" v-if="page + 1 < pagesCount"><a class="page-link">{{ page + 1
-          }}</a></li>
+              }}</a></li>
           <li @click="page = page + 2" class="page-item" v-if="page + 2 < pagesCount"><a class="page-link">{{ page + 2
-          }}</a></li>
+              }}</a></li>
           <li @click="page = page + 3" class="page-item" v-if="page + 3 < pagesCount"><a class="page-link">{{ page + 3
-          }}</a></li>
+              }}</a></li>
 
           <li class="page-item" v-if="page < pagesCount">
             <a class="page-link" href="#" @click="page += 1">Next</a>
@@ -271,7 +294,7 @@ function label(name) {
       :clients="(thisCanBeAddAndChanged) ? clients : [{ id: id, username: userName }]"
       :employees="thisCanBeAddAndChanged ? employees : undefined" />
 
-      <CreateStatistics v-model="isFormStats" :type="'service'"/>
+    <CreateStatistics v-model="isFormStats" :type="'service'" />
 
 
     <div class="modal fade" id="editServiceModal" tabindex="-1">

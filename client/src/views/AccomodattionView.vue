@@ -155,6 +155,24 @@ function label(name) {
 function client_label(name) {
     return name.client_name ? name.client_name : name.client_user
 }
+function exportExel() {
+    axios({
+        url: '/api/accomodattion/export',
+        method: 'GET',
+        responseType: 'blob',
+    }).then((response) => {
+        const href = URL.createObjectURL(response.data)
+
+        const link = document.createElement('a');
+        link.href = href;
+        link.setAttribute('download', 'Report.xlsx');
+        document.body.appendChild(link);
+        link.click();
+
+        document.body.removeChild(link);
+        URL.revokeObjectURL(href);
+    });
+}
 </script>
 
 <template>
@@ -167,6 +185,10 @@ function client_label(name) {
             <button class="btn btn-info" v-if="isSuperUser" @click="isFormStats = true"
                 style="position:absolute; top: 0; right: 0;">
                 <i class="bi bi-graph-up"></i>
+            </button>
+            <button class="btn btn-info" v-if="isSuperUser" @click="exportExel()"
+                style="position:absolute; top: 0; left: 0;">
+                <i class="bi bi-arrow-down-square"></i>
             </button>
         </div>
 
@@ -222,7 +244,7 @@ function client_label(name) {
                     </li>
 
                     <li @click="page = page - 1" class="page-item" v-if="page - 1 > 0"><a class="page-link">{{ page - 1
-                            }}</a>
+                    }}</a>
                     </li>
                     <li class="page-item" v-if="page > 0"><span href="" class="page-link">{{ page }}</span></li>
                     <li @click="page = page + 1" class="page-item" v-if="page + 1 < pagesCount"><a class="page-link">{{

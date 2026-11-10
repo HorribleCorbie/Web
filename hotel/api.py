@@ -1,6 +1,9 @@
 from django.db.models.aggregates import Avg, Count, Max, Min
 from django.db.models.functions import Lower
 from rest_framework import mixins
+from io import BytesIO
+from django.http import HttpResponse
+import pandas
 from django.contrib.auth.models import User
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -51,6 +54,36 @@ class RoomsViewset(mixins.CreateModelMixin,
             .distinct()
             .order_by('username'))
         return Response(list(qs))
+    
+    @action(detail=False, url_path="export", methods=['get'])
+    def import_to_excel(self, request):
+        objs = Room.objects.all()
+        data = []
+        for obj in objs:
+            data.append({
+                "id": obj.id,
+                "number": obj.number,
+                "price": obj.price,
+                "description": obj.description,
+                "user_nickname": obj.user,
+                "user_first_name": obj.user_first_name
+            })
+            
+        df = pandas.DataFrame(data=data, columns=['id', 'number', 'price', 'description'])
+        output = BytesIO()
+        writer = pandas.ExcelWriter(output,engine='xlsxwriter')
+        df.to_excel(writer, index=False)
+        
+        output.seek(0)
+        writer.close()
+        
+        response = HttpResponse(
+            output.getvalue(), 
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = 'attachment; filename=Report.xlsx'
+
+        return response
     
     class StatsSerializer (serializers.Serializer):
         count = serializers. IntegerField()
@@ -112,6 +145,35 @@ class ServicesViewset(mixins.CreateModelMixin,
         max = serializers. IntegerField()
         min = serializers. IntegerField()
     
+    @action(detail=False, url_path="export", methods=['get'])
+    def import_to_excel(self, request):
+        objs = Service.objects.all()
+        data = []
+        for obj in objs:
+            data.append({
+                "id": obj.id,
+                "name": obj.name,
+                "price": obj.price,
+                "user": obj.user,
+                "user_id": obj.user_id
+            })
+            
+        df = pandas.DataFrame(data=data, columns=['id', 'name', 'price', 'user', 'user_id'])
+        output = BytesIO()
+        writer = pandas.ExcelWriter(output,engine='xlsxwriter')
+        df.to_excel(writer, index=False)
+        
+        output.seek(0)
+        writer.close()
+        
+        response = HttpResponse(
+            output.getvalue(), 
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = 'attachment; filename=Report.xlsx'
+
+        return response
+    
     @action(detail=False, methods=["GET"], url_path="stats")
     def get_stats (self, request, *args,**kwargs):
         stats = Service.objects.aggregate(
@@ -158,6 +220,38 @@ class AccomodattionViewset(mixins.CreateModelMixin,
         'user'
     )
     serializer_class = AccomodattionSerializer
+    
+    @action(detail=False, url_path="export", methods=['get'])
+    def import_to_excel(self, request):
+        objs = Accomodattion.objects.all()
+        data = []
+        for obj in objs:
+            data.append({
+                "id": obj.id,
+                "in_date": obj.in_date,
+                "out_date": obj.out_date,
+                "room": obj.room,
+                "client": obj.client,
+                "user_name": obj.user,
+            })
+        
+            
+        df = pandas.DataFrame(data=data, columns=['id', 'in_date', 'out_date', 
+                                                  'room', 'client', 'user_name'])
+        output = BytesIO()
+        writer = pandas.ExcelWriter(output,engine='xlsxwriter')
+        df.to_excel(writer, index=False)
+        
+        output.seek(0)
+        writer.close()
+        
+        response = HttpResponse(
+            output.getvalue(), 
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = 'attachment; filename=Report.xlsx'
+
+        return response
     
     class StatsSerializer (serializers.Serializer):
         count = serializers. IntegerField()
@@ -248,6 +342,37 @@ class ProvisionViewset(mixins.CreateModelMixin,
     )
     serializer_class = ProvisionSerializer
     
+    @action(detail=False, url_path="export", methods=['get'])
+    def import_to_excel(self, request):
+        objs = Provision.objects.all()
+        data = []
+        for obj in objs:
+            data.append({
+                "id": obj.id,
+                "quantity": obj.quantity,
+                "service": obj.service,
+                "employee": obj.employee,
+                "accomodattion": obj.accomodattion,
+                "user": obj.user,
+            })
+        
+            
+        df = pandas.DataFrame(data=data, columns=['id', 'quantity', 'service', 
+                                                  'employee', 'accomodattion', 'user'])
+        output = BytesIO()
+        writer = pandas.ExcelWriter(output,engine='xlsxwriter')
+        df.to_excel(writer, index=False)
+        
+        output.seek(0)
+        writer.close()
+        
+        response = HttpResponse(
+            output.getvalue(), 
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = 'attachment; filename=Report.xlsx'
+
+        return response
     
     class StatsSerializer (serializers.Serializer):
         count = serializers. IntegerField()
