@@ -139,7 +139,6 @@ async function fetchClients() {
 
 
 onBeforeMount(async () => {
-  axios.defaults.headers.common['X-CSRFToken'] = Cookies.get("csrftoken");
   fetchServices()
   fetchAccomodattion()
   fetchEmployees()
@@ -199,17 +198,17 @@ const exportHref = computed (()=>{
 
     <div style="position:relative ">
       <h1>Услуги</h1>
-      <button class="btn btn-info" v-if="isSuperUser" @click="isFormStats = true"
+      <button class="btn btn-info" v-if="isSuperUser && thisCanBeAddAndChanged" @click="isFormStats = true"
         style="position:absolute; top: 0; right: 0;">
         <i class="bi bi-graph-up"></i>
       </button>
-      <a target="blank" :href="exportHref"  class="btn btn-info" v-if="isSuperUser"  style="position:absolute; top: 0; left: 0;">
+      <a target="blank" :href="exportHref"  class="btn btn-info" v-if="isSuperUser && thisCanBeAddAndChanged"  style="position:absolute; top: 0; left: 0;">
         <i class="bi bi-arrow-down-square"></i>
       </a>
     </div>
 
     <div class="objects">
-      <button type="button" v-if="thisCanBeAddAndChanged && role != 2" class="btn btn-warning" data-bs-toggle="modal"
+      <button type="button" v-if="role != 2" class="btn btn-warning" data-bs-toggle="modal"
         data-bs-target="#serviceModel">
         Добавить услугу
       </button>

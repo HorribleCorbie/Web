@@ -6,6 +6,7 @@ import LoginView from '@/views/LoginView.vue'
 import RegisterView from '@/views/RegisterView.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import profileStore from '@/stores/profileStore.js';
+import SecretKeyView from '@/views/SecretKeyView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -46,6 +47,12 @@ const router = createRouter({
       name: 'register',
       component: RegisterView,
     },
+    {
+      path:'/qrcode',
+      name: 'qrcode',
+      meta: { requiresAuth: true },
+      component: SecretKeyView
+    }
   ],
 })
 

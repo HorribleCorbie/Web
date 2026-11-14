@@ -35,8 +35,8 @@ async function onRegisterClick() {
             </div>
         </form>
         <div class="register">
-            <span>Вы уже есть у нас в системе?</span>
-            <a type="button" class="btn btn-info" href="/login"> Войдите в учетную запись</a>
+            <span>Вы уже есть у нас в системе? </span>
+            <a type="button" class="btn btn-info" href="/login">Войдите в учетную запись</a>
         </div>
     </div>
 </template>

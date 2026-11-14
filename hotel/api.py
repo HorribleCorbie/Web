@@ -8,11 +8,14 @@ from django.contrib.auth.models import User
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
+from django.core.cache import cache
 from rest_framework.viewsets import GenericViewSet
 from django.db.models import Q
 from django.contrib.auth import logout as django_logout
 from django.contrib.auth import login as django_login
 from django.contrib.auth import authenticate
+from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
+import pyotp
 
 from hotel.models import *
 from hotel.serializers import *
@@ -25,6 +28,11 @@ class RoomsViewset(mixins.CreateModelMixin,
                    GenericViewSet):
     queryset = Room.objects.select_related('user').prefetch_related('picture').order_by('number')
     serializer_class = RoomSerializer 
+    
+    def get_permissions(self):
+        if self.action in ["update", "partial_update", "destroy", "get_stats", "import_to_excel"]:
+            return [IsAuthenticated(), OTPRequired()]
+        return [AllowAny()]
     
     def get_queryset(self):
         qs =super().get_queryset()
@@ -159,7 +167,12 @@ class ServicesViewset(mixins.CreateModelMixin,
                       GenericViewSet):
     queryset= Service.objects.select_related('user')
     serializer_class = ServiceSerializer
-
+    
+    def get_permissions(self):
+        if self.action in ["update", "partial_update", "destroy", "get_stats", "import_to_excel"]:
+            return [IsAuthenticated(), OTPRequired()]
+        return [AllowAny()]
+    
     class StatsSerializer (serializers.Serializer):
         count = serializers. IntegerField()
         avg = serializers.FloatField()
@@ -263,6 +276,11 @@ class AccomodattionViewset(mixins.CreateModelMixin,
         'user'
     )
     serializer_class = AccomodattionSerializer
+        
+    def get_permissions(self):
+        if self.action in ["update", "partial_update", "destroy", "get_stats", "import_to_excel"]:
+            return [IsAuthenticated(), OTPRequired()]
+        return [AllowAny()]
     
     @action(detail=False, url_path="export", methods=['get'])
     def import_to_excel(self, request):
@@ -435,6 +453,11 @@ class ProvisionViewset(mixins.CreateModelMixin,
         'user'
     )
     serializer_class = ProvisionSerializer
+        
+    def get_permissions(self):
+        if self.action in ["update", "partial_update", "destroy", "get_stats", "import_to_excel"]:
+            return [IsAuthenticated(), OTPRequired()]
+        return [AllowAny()]
     
     @action(detail=False, url_path="export", methods=['get'])
     def import_to_excel(self, request):
@@ -626,32 +649,46 @@ class UserViewset(mixins.CreateModelMixin,
 
         return queryset
     
+class OTPRequired(BasePermission):
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return bool(cache.get(f"otp_good_{request.user.id}", False))
+    
 class ProfileViewSet(GenericViewSet):
     queryset = User.objects.all()
 
-    @action(detail=False, url_path="me", methods=['GET'])
+    class OTPSerializer(serializers.Serializer):
+        key = serializers.CharField()
+
+    @action(detail=False, url_path="me", methods=['GET'], permission_classes=[])
     def get_me(self, request, *args, **kwargs):
         data = {
             'is_authenticated': self.request.user.is_authenticated,
             'is_superuser': self.request.user.is_superuser
         }
+        
 
         if self.request.user.is_authenticated:
+            uri = pyotp.totp.TOTP(self.request.user.profile.otp_key).provisioning_uri(name=self.request.user.username, issuer_name='Hotel App')
+            
             data.update({
                 "username": self.request.user.username,
                 "id": self.request.user.id,
                 "role": self.request.user.profile.role,
+                "otp_uri": uri,
+                "otp_secret": self.request.user.profile.otp_key,
             })
 
         return Response(data=data)
 
-    @action(detail=False, url_path="logout", methods=['POST'])
+    @action(detail=False, url_path="logout", methods=['POST'], permission_classes=[])
     def logout(self, *args, **kwargs):
         django_logout(self.request)
 
         return Response()
 
-    @action(detail=False, url_path="login", methods=['POST'])
+    @action(detail=False, url_path="login", methods=['POST'], permission_classes=[])
     def login(self, *args, **kwargs):
         username = self.request.data['username']
         password = self.request.data['password']
@@ -665,9 +702,52 @@ class ProfileViewSet(GenericViewSet):
             status_code = 200
             django_login(self.request, user)
 
+        if not self.request.user.profile.otp_key: 
+            self.request.user.profile.otp_key = pyotp.random_base32()
+            self.request.user.profile.save()
+
+        return Response({
+            'success': success,
+            'is_authenticated': bool(user)
+        }, status=status_code)
+
+    @action(detail=False, url_path='otp-login', methods=['POST'], serializer_class=OTPSerializer)
+    def otp_login(self, *args, **kwargs):
+            
+        totp = pyotp.TOTP(self.request.user.profile.otp_key)
+            
+        serializer = self.get_serializer(data=self.request.data)
+        serializer.is_valid(raise_exception=True)
+
+        success = False
+        if totp.now() == serializer.validated_data['key']:
+            cache.set('otp_good', True, 100)
+            success = True
+
         return Response({
             'success': success
-        }, status=status_code)
+        })
+        
+
+    @action(detail=False, url_path='otp-status', permission_classes=[])
+    def get_otp_status(self, *args, **kwargs):
+        otp_good = cache.get('otp_good', False)
+        return Response({
+            'otp_good': otp_good
+        })
+
+    @action(detail=False, url_path='otp-required', permission_classes=[OTPRequired])
+    def page_with_otp_required(self, *args, **kwargs):
+        return Response({
+            'success': True
+        })
+        
+            
+    @action(detail=False, url_path="check-login", methods=['GET'], permission_classes=[])
+    def get_check_login(self, request, *args, **kwargs):
+        return Response({
+            'is_authenticated': self.request.user.is_authenticated
+        })
 
     @action(detail=False, url_path="register", methods=['POST'])
     def register(self, *args, **kwargs):
@@ -695,8 +775,3 @@ class ProfileViewSet(GenericViewSet):
         return Response({
             'success': success
         }, status=status_code)
-        
-
-    # @action(detail=False, url_path="activate_user", methods=['POST'])
-    # def activate_user(self, *args, **kwargs):
-    #     pass

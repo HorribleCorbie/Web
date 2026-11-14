@@ -132,7 +132,6 @@ async function fetchClients() {
 }
 
 onBeforeMount(async () => {
-    axios.defaults.headers.common['X-CSRFToken'] = Cookies.get("csrftoken");
     fetchProvision()
     fetchAccomodattion()
     fetchServices()
@@ -206,11 +205,11 @@ const exportHref = computed(() => {
 
         <div style="position:relative ">
             <h1>Оказание услуг</h1>
-            <button class="btn btn-info" v-if="isSuperUser" @click="isFormStats = true"
+            <button class="btn btn-info" v-if="isSuperUser && thisCanBeAddAndChanged" @click="isFormStats = true"
                 style="position:absolute; top: 0; right: 0;">
                 <i class="bi bi-graph-up"></i>
             </button>
-            <a class="btn btn-info" v-if="isSuperUser" target="blank" :href="exportHref"
+            <a class="btn btn-info" v-if="isSuperUser && thisCanBeAddAndChanged" target="blank" :href="exportHref"
                 style="position:absolute; top: 0; left: 0;">
                 <i class="bi bi-arrow-down-square"></i>
             </a>

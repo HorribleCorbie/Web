@@ -55,6 +55,12 @@ async function onLogoutButtonClick() {
                             <li><a class="dropdown-item" href="/admin">Админка</a></li>
                         </ul>
                     </li>
+                    <router-link v-if="isAuthenticated"  class="nav-link" to="/qrcode">
+                        <a class="btn btn-warning">
+                            <i class="bi bi-qr-code-scan"></i>
+                        </a>
+                    </router-link>
+
                 </ul>
 
                 <div>

@@ -8,9 +8,7 @@ import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
 import CreateStatistics from '@/components/CreateStatistics.vue';
 import SearchAccommodattion from '@/components/SearchAccommodattion.vue';
-import _ from 'lodash';
-//генератор токенов для двойной авторизации
-//в информации вводить интересную для админа инфу
+import _ from 'lodash'
 
 const accomodattionToEdit = ref({})
 const selectedAccomodattion = ref([])
@@ -171,11 +169,11 @@ watch(page, () => {
 
         <div style="position:relative ">
             <h1>Проживания</h1>
-            <button class="btn btn-info" v-if="isSuperUser" @click="isFormStats = true"
+            <button class="btn btn-info" v-if="isSuperUser && thisCanBeAddAndChanged" @click="isFormStats = true"
                 style="position:absolute; top: 0; right: 0;">
                 <i class="bi bi-graph-up"></i>
             </button>
-            <a target="blank" :href="exportHref" class="btn btn-info" v-if="isSuperUser"
+            <a target="blank" :href="exportHref" class="btn btn-info" v-if="isSuperUser && thisCanBeAddAndChanged"
                 style="position:absolute; top: 0; left: 0;">
                 <i class="bi bi-arrow-down-square"></i>
             </a>

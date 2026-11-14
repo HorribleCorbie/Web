@@ -2,6 +2,7 @@ from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.auth.models import User
+import pyotp
 
 # Create your models here.
 class Profile(models.Model):
@@ -11,6 +12,7 @@ class Profile(models.Model):
         client = 2
     user = models.OneToOneField("auth.User", on_delete=models.CASCADE, null=True, blank=True)
     role = models.IntegerField("Роль", choices=Role, default=Role.undefined)
+    otp_key  = models.CharField("Секретный ключ", max_length=32, null=True, blank=True)
 
     class Meta:
         verbose_name="Профиль"
@@ -18,6 +20,12 @@ class Profile(models.Model):
 
     def __str__(self):
         return self.user.username if self.user else f"Профиль {self.id}"
+    
+    def save(self, *args, **kwargs):
+        if not self.otp_key :
+            self.otp_key  = pyotp.random_base32() 
+        
+        super().save(*args, **kwargs)
 
 @receiver(post_save, sender=User)
 def on_user_create(sender, instance, created, *args, **kwargs):

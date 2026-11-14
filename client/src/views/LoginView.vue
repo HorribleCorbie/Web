@@ -5,7 +5,6 @@ import {ref} from 'vue';
 
 const profileStore = useProfileStore();
 
-
 const username = ref("")
 const password = ref("")
 

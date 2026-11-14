@@ -31,6 +31,13 @@ h1 {
     gap: 10px;
 }
 
+.objectsView {
+    display: flex;
+    flex-direction: column;
+     text-align: center;
+    gap: 10px;
+}
+
 .list {
     display: grid;
     grid-template-columns: 1fr auto auto auto auto;

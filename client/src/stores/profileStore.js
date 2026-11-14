@@ -1,8 +1,8 @@
 import { defineStore } from "pinia";
-import {ref, onBeforeMount} from 'vue';
-import router from '@/router';
+import { ref, onBeforeMount, computed } from 'vue';
 import axios from 'axios';
 import Cookies from "js-cookie";
+import router from '@/router'; 
 
 const useProfileStore = defineStore('profileStore', () => {
 
@@ -11,8 +11,9 @@ const useProfileStore = defineStore('profileStore', () => {
     const userName = ref(null);
     const id = ref(-1)
     const role = ref(null)
-    const thisCanBeAddAndChanged = ref(false)
-    
+    const otp_uri = ref(null)
+    const isOtpReady = ref(false)
+
     async function fetchMe() {
         const r = await axios.get("/api/profile/me/");
         axios.defaults.headers.common['X-CSRFToken'] = Cookies.get("csrftoken");
@@ -20,9 +21,10 @@ const useProfileStore = defineStore('profileStore', () => {
         isSuperUser.value = r.data.is_superuser
         id.value = r.data.id;
         userName.value = r.data.is_authenticated ? r.data.username : null;
-        role.value = r.data.role ?  r.data.role : null
-        if (role.value != 2)
-            thisCanBeAddAndChanged.value = true
+        role.value = r.data.role ? r.data.role : null
+        otp_uri.value = r.data.otp_uri
+        const o = await axios.get("/api/profile/otp-status/")
+        isOtpReady.value = Boolean(o.data.otp_good)
     }
 
     async function register(username, password) {
@@ -30,7 +32,8 @@ const useProfileStore = defineStore('profileStore', () => {
             username: username,
             password: password,
         })
-        fetchMe();
+        await fetchMe()
+        router.push('/')
     }
 
     async function login(username, password) {
@@ -38,12 +41,37 @@ const useProfileStore = defineStore('profileStore', () => {
             username: username,
             password: password,
         })
-        fetchMe();
+        await fetchMe();
+        router.push('/')
+    }
+
+    const thisCanBeAddAndChanged = computed (() => {
+        if (role.value != 2 && isOtpReady.value)
+            return true
+        else 
+            return false
+    })
+
+    async function otp_login(code) {
+        const r = await axios.post('/api/profile/otp-login/', {
+            key: String(code).trim()
+        })
+        if (r.data.success) {
+            isOtpReady.value = true
+            return true
+        }
+        else
+        {
+            isOtpReady.value = false
+            return false
+        }
+
     }
 
     async function logout() {
         await axios.post("/api/profile/logout/")
         fetchMe();
+        router.push('/login')
     }
 
     onBeforeMount(() => {
@@ -57,11 +85,14 @@ const useProfileStore = defineStore('profileStore', () => {
         id,
         role,
         thisCanBeAddAndChanged,
+        isOtpReady,
+        otp_uri,
 
         fetchMe,
         login,
         logout,
-        register
+        register,
+        otp_login
     }
 })
 
