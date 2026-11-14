@@ -10,6 +10,7 @@ import CreateProvision from '@/components/CreateProvision.vue';
 import CreateStatistics from '@/components/CreateStatistics.vue';
 import SearchProvision from '@/components/SearchProvision.vue';
 import SearchAccommodattion from '@/components/SearchAccommodattion.vue';
+import _ from 'lodash';
 
 const profileStore = useProfileStore();
 const {
@@ -132,11 +133,11 @@ async function fetchClients() {
 
 onBeforeMount(async () => {
     axios.defaults.headers.common['X-CSRFToken'] = Cookies.get("csrftoken");
-    await fetchProvision()
-    await fetchAccomodattion()
-    await fetchServices()
-    await fetchEmployees()
-    await fetchClients()
+    fetchProvision()
+    fetchAccomodattion()
+    fetchServices()
+    fetchEmployees()
+    fetchClients()
 })
 
 async function onRemoveClick(provision) {
@@ -157,14 +158,13 @@ const numberFilter = ref(null)
 const inDateFilter = ref(null)
 const outDateFilter = ref(null)
 
-async function fetchProvision() {
+const fetchProvision = _.debounce(async () => {
     loading.value = true
     const params = { page: page.value, page_size: pageItemsCount.value }
     if (authorFilter.value) params.user = authorFilter.value
     if (serviceFilter.value) params.service = serviceFilter.value
     if (quantityFilter.value) params.quantity = quantityFilter.value
     if (priceFilter.value) params.price = priceFilter.value
-
     if (clientFilter.value) params.client = clientFilter.value
     if (numberFilter.value) params.number = numberFilter.value
     if (inDateFilter.value) params.in_date = inDateFilter.value
@@ -173,7 +173,7 @@ async function fetchProvision() {
     provisions.value = r.data.results
     pagesCount.value = Math.max(1, Math.ceil(r.data.count / pageItemsCount.value))
     loading.value = false
-}
+}, 300)
 
 watch([authorFilter, serviceFilter, quantityFilter,
     priceFilter, clientFilter, numberFilter, inDateFilter, outDateFilter], () => {
@@ -187,28 +187,17 @@ watch(page, () => {
     fetchProvision();
 })
 
-function label(name) {
-    return name.user_first_name ? name.user_first_name : name.user_name
+let formattedProvisions = computed(() => {
+    return provisions.value.map(item => ({
+        ...item,
+        user_name: item.user_first_name || item.user_name
+    }))
 }
+)
 
-function exportExel() {
-  axios({
-    url: '/api/provision/export',
-    method: 'GET',
-    responseType: 'blob',
-  }).then((response) => {
-    const href = URL.createObjectURL(response.data)
-
-    const link = document.createElement('a');
-    link.href = href;
-    link.setAttribute('download', 'Report.xlsx'); 
-    document.body.appendChild(link);
-    link.click();
-
-    document.body.removeChild(link);
-    URL.revokeObjectURL(href);
-  });
-}
+const exportHref = computed(() => {
+    return '/api/provision/export'
+})
 </script>
 
 <template>
@@ -221,10 +210,10 @@ function exportExel() {
                 style="position:absolute; top: 0; right: 0;">
                 <i class="bi bi-graph-up"></i>
             </button>
-            <button class="btn btn-info" v-if="isSuperUser" @click="exportExel()"
+            <a class="btn btn-info" v-if="isSuperUser" target="blank" :href="exportHref"
                 style="position:absolute; top: 0; left: 0;">
                 <i class="bi bi-arrow-down-square"></i>
-            </button>
+            </a>
         </div>
 
         <div class="objects">
@@ -251,7 +240,7 @@ function exportExel() {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="provision in provisions">
+                    <tr v-for="provision in formattedProvisions">
                         <td>{{ findService(provision.service) }}</td>
                         <td>Клиент - {{ provision.accomodattion_info.client_name }} в номере {{
                             provision.accomodattion_info.room_number }} с даты
@@ -271,7 +260,7 @@ function exportExel() {
                                 </button>
                             </div>
                         </td>
-                        <td v-if="isSuperUser">{{ label(provision) }}</td>
+                        <td v-if="isSuperUser">{{ provision.user_name }}</td>
                     </tr>
                 </tbody>
             </table>

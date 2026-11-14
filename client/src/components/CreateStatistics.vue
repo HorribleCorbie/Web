@@ -18,12 +18,12 @@ const modalRef = ref(null)
 let bootstrapInstance = null
 
 const fetchStats = async () => {
-  try {
-    const r = await axios.get(`/api/${props.type}/stats/`);
-    stats.value = r.data;
-  } catch (error) {
-    console.error("Ошибка при загрузке статистики:", error);
-  }
+    try {
+        const r = await axios.get(`/api/${props.type}/stats/`);
+        stats.value = r.data;
+    } catch (error) {
+        console.error("Ошибка при загрузке статистики:", error);
+    }
 }
 
 onMounted(() => {
@@ -42,20 +42,20 @@ function onModalHidden() {
 }
 
 watch(isFormStats, (newVal) => {
-  if (newVal) {
-    bootstrapInstance?.show();
-    fetchStats();
-  } else {
-    bootstrapInstance?.hide();
-  }
+    if (newVal) {
+        bootstrapInstance?.show();
+        fetchStats();
+    } else {
+        bootstrapInstance?.hide();
+    }
 })
 
 onBeforeUnmount(() => {
-  if (modalRef.value) {
-    modalRef.value.removeEventListener('hidden.bs.modal', onModalHidden);
-  }
-  bootstrapInstance?.dispose();
-  isFormStats.value = false
+    if (modalRef.value) {
+        modalRef.value.removeEventListener('hidden.bs.modal', onModalHidden);
+    }
+    bootstrapInstance?.dispose();
+    isFormStats.value = false
 });
 </script>
 
@@ -70,26 +70,11 @@ onBeforeUnmount(() => {
                     </h1>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body objects">
-                    <div class="row">
-                        <div class="col">
-                            Общее количество записей: {{ stats.count }}
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col">
-                            Средняя цена: {{ stats.avg?.toFixed(2)}}
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col">
-                            Максимум: {{ stats.max }}
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col">
-                            Минимум: {{ stats.min }}
-                        </div>
+                <div class="modal-body objects" v-for="(value, key) in stats">
+                        <div class="row">
+                            <div class="col">
+                                {{ key }}: {{ value }}
+                            </div>
                     </div>
                 </div>
                 <div class="modal-footer">

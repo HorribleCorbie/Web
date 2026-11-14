@@ -40,7 +40,7 @@ function clearAll() {
         </div>
 
         <div class="input-group">
-            <input type="number" v-model="selectedQuantity" class="form-control" placeholder="Найти по количеству"
+            <input type="number" v-model="selectedQuantity" class="form-control" placeholder="Найти по количеству..."
                 min="1" />
             <button v-if="selectedQuantity !== null" class="btn btn-outline-secondary" type="button"
                 @click="clearQuantity">✕</button>

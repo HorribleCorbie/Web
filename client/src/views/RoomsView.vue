@@ -1,13 +1,13 @@
 <script setup>
 import axios from 'axios';
 import { onBeforeMount, ref, toRaw, computed, watch } from 'vue';
-import Cookies from 'js-cookie';
 import SearchFilters from '@/components/SearchFilters.vue'
 import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
 import CreateAccommodattion from '@/components/CreateAccommodattion.vue';
 import CreateStatistics from '@/components/CreateStatistics.vue';
 import SearchRooms from '@/components/SearchRooms.vue';
+import _ from 'lodash';
 
 const accomodattionModal = ref(false)
 
@@ -174,7 +174,7 @@ const numberFilter = ref(null)
 const descriptionFilter = ref(null)
 const priceFilter = ref(null)
 
-async function fetchRooms() {
+const fetchRooms = _.debounce(async () => {
   loading.value = true
   const params = { page: page.value, page_size: pageItemsCount.value }
   if (authorFilter.value) params.user = authorFilter.value
@@ -185,7 +185,7 @@ async function fetchRooms() {
   rooms.value = r.data.results
   pagesCount.value = Math.max(1, Math.ceil(r.data.count / pageItemsCount.value))
   loading.value = false
-}
+}, 300)
 
 watch([authorFilter, numberFilter, descriptionFilter, priceFilter], () => {
   if (page.value === 1) fetchRooms()
@@ -199,9 +199,8 @@ watch(page, () => {
 })
 
 onBeforeMount(async () => {
-  axios.defaults.headers.common['X-CSRFToken'] = Cookies.get("csrftoken");
-  await fetchRooms()
-  await fetchClients()
+  fetchRooms()
+  fetchClients()
 })
 
 async function onRemoveClick(room) {
@@ -209,29 +208,16 @@ async function onRemoveClick(room) {
   await fetchRooms();
 }
 
-function label(name) {
-  return name.user_first_name ? name.user_first_name : name.user_name
-}
+const exportHref = computed(() => {
+  return '/api/rooms/export'
+}) 
 
-function exportExel() {
-  axios({
-    url: '/api/rooms/export',
-    method: 'GET',
-    responseType: 'blob',
-  }).then((response) => {
-    const href = URL.createObjectURL(response.data)
-
-    const link = document.createElement('a');
-    link.href = href;
-    link.setAttribute('download', 'Report.xlsx'); 
-    document.body.appendChild(link);
-    link.click();
-
-    document.body.removeChild(link);
-    URL.revokeObjectURL(href);
-  });
-}
-
+let formattedRooms = computed(() => {
+  return rooms.value.map(item => ({
+    ...item,
+    user_name:  item.user_first_name || item.user_name
+  }))
+})
 </script>
 
 <template>
@@ -244,9 +230,10 @@ function exportExel() {
         style="position:absolute; top: 0; right: 0;">
         <i class="bi bi-graph-up"></i>
       </button>
-      <button class="btn btn-info" v-if="isSuperUser" @click="exportExel()" style="position:absolute; top: 0; left: 0;">
+      <a target="blank" :href="exportHref" class="btn btn-info" v-if="isSuperUser"
+        style="position:absolute; top: 0; left: 0;">
         <i class="bi bi-arrow-down-square"></i>
-      </button>
+      </a>
     </div>
 
     <div class="objects">
@@ -272,7 +259,7 @@ function exportExel() {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="room in rooms">
+          <tr v-for="room in formattedRooms">
             <th scope="row">{{ room.number }}</th>
             <td>{{ room.description }}</td>
             <td v-show="room.picture"><img :src="room.picture[0]?.picture" type="button"
@@ -296,7 +283,9 @@ function exportExel() {
                 </button>
               </div>
             </td>
-            <td v-if="isSuperUser">{{ label(room) }}</td>
+            <td v-if="isSuperUser">
+                {{ room.user_name}}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -311,11 +300,11 @@ function exportExel() {
           </li>
           <li class="page-item" v-if="page > 0"><span href="" class="page-link">{{ page }}</span></li>
           <li @click="page = page + 1" class="page-item" v-if="page + 1 < pagesCount"><a class="page-link">{{ page + 1
-              }}</a></li>
+          }}</a></li>
           <li @click="page = page + 2" class="page-item" v-if="page + 2 < pagesCount"><a class="page-link">{{ page + 2
-              }}</a></li>
+          }}</a></li>
           <li @click="page = page + 3" class="page-item" v-if="page + 3 < pagesCount"><a class="page-link">{{ page + 3
-              }}</a></li>
+          }}</a></li>
 
           <li class="page-item" v-if="page < pagesCount">
             <a class="page-link" href="#" @click="page += 1">Next</a>

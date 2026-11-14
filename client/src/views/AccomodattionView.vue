@@ -1,7 +1,6 @@
 <script setup>
 import axios from 'axios';
 import { computed, onBeforeMount, ref, watch } from 'vue';
-import Cookies from 'js-cookie';
 import SearchFilters from '@/components/SearchFilters.vue'
 import CreateAccommodattion from '@/components/CreateAccommodattion.vue';
 import ErrorModal from '@/components/ErrorModal.vue';
@@ -9,6 +8,9 @@ import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
 import CreateStatistics from '@/components/CreateStatistics.vue';
 import SearchAccommodattion from '@/components/SearchAccommodattion.vue';
+import _ from 'lodash';
+//генератор токенов для двойной авторизации
+//в информации вводить интересную для админа инфу
 
 const accomodattionToEdit = ref({})
 const selectedAccomodattion = ref([])
@@ -101,10 +103,9 @@ async function fetchRooms() {
 
 
 onBeforeMount(async () => {
-    axios.defaults.headers.common['X-CSRFToken'] = Cookies.get("csrftoken");
-    await fetchAccomodattion()
-    await fetchRooms()
-    await fetchClients()
+    fetchAccomodattion()
+    fetchRooms()
+    fetchClients()
 })
 
 async function onRemoveClick(accomodattion) {
@@ -122,7 +123,11 @@ const outDateFilter = ref(null)
 const clientFilter = ref(null)
 const priceFilter = ref(null)
 
-async function fetchAccomodattion() {
+const exportHref = computed(() => {
+    return '/api/accomodattion/export'
+})
+
+const fetchAccomodattion = _.debounce(async () => {
     loading.value = true
     const params = { page: page.value, page_size: pageItemsCount.value }
     if (authorFilter.value) params.user = authorFilter.value
@@ -135,7 +140,16 @@ async function fetchAccomodattion() {
     accomodattions.value = r.data.results
     pagesCount.value = Math.max(1, Math.ceil(r.data.count / pageItemsCount.value))
     loading.value = false
-}
+}, 300)
+
+let formattedAccommodattions = computed(() => {
+    return accomodattions.value.map(item => ({
+        ...item,
+        client_name: item.client_name || item.client_user,
+        user_name: item.user_first_name || item.user_name,
+    }))
+})
+
 
 watch([authorFilter, numberFilter, inDateFilter, outDateFilter, clientFilter, priceFilter], () => {
     if (page.value === 1) fetchAccomodattion()
@@ -148,31 +162,6 @@ watch(page, () => {
     fetchAccomodattion();
 })
 
-function label(name) {
-    return name.user_first_name ? name.user_first_name : name.user_name
-}
-
-function client_label(name) {
-    return name.client_name ? name.client_name : name.client_user
-}
-function exportExel() {
-    axios({
-        url: '/api/accomodattion/export',
-        method: 'GET',
-        responseType: 'blob',
-    }).then((response) => {
-        const href = URL.createObjectURL(response.data)
-
-        const link = document.createElement('a');
-        link.href = href;
-        link.setAttribute('download', 'Report.xlsx');
-        document.body.appendChild(link);
-        link.click();
-
-        document.body.removeChild(link);
-        URL.revokeObjectURL(href);
-    });
-}
 </script>
 
 <template>
@@ -186,10 +175,10 @@ function exportExel() {
                 style="position:absolute; top: 0; right: 0;">
                 <i class="bi bi-graph-up"></i>
             </button>
-            <button class="btn btn-info" v-if="isSuperUser" @click="exportExel()"
+            <a target="blank" :href="exportHref" class="btn btn-info" v-if="isSuperUser"
                 style="position:absolute; top: 0; left: 0;">
                 <i class="bi bi-arrow-down-square"></i>
-            </button>
+            </a>
         </div>
 
         <div class="objects">
@@ -215,12 +204,12 @@ function exportExel() {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="accomodattion in accomodattions">
+                    <tr v-for="accomodattion in formattedAccommodattions">
                         <td>{{ accomodattion.room_number }}</td>
                         <td>{{ accomodattion.in_date }}</td>
                         <td>{{ accomodattion.out_date }}</td>
                         <td>{{ accomodattion.price }}</td>
-                        <td>{{ client_label(accomodattion) }}</td>
+                        <td>{{ accomodattion.client_name }}</td>
                         <td v-if="(accomodattion.user === id || isSuperUser) && thisCanBeAddAndChanged">
                             <div class="buttons-div">
                                 <button class="btn btn-success" @click="onAccomodattionEditClick(accomodattion)"
@@ -233,7 +222,9 @@ function exportExel() {
                                 </button>
                             </div>
                         </td>
-                        <td v-if="isSuperUser">{{ label(accomodattion) }}</td>
+                        <td v-if="isSuperUser">
+                            {{ accomodattion.user_name }}
+                        </td>
                     </tr>
                 </tbody>
             </table>
@@ -244,7 +235,7 @@ function exportExel() {
                     </li>
 
                     <li @click="page = page - 1" class="page-item" v-if="page - 1 > 0"><a class="page-link">{{ page - 1
-                    }}</a>
+                            }}</a>
                     </li>
                     <li class="page-item" v-if="page > 0"><span href="" class="page-link">{{ page }}</span></li>
                     <li @click="page = page + 1" class="page-item" v-if="page + 1 < pagesCount"><a class="page-link">{{

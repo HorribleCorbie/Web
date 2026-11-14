@@ -57,6 +57,11 @@ class RoomsViewset(mixins.CreateModelMixin,
     
     @action(detail=False, url_path="export", methods=['get'])
     def import_to_excel(self, request):
+        
+        user = self.request.user
+        if not user.is_superuser:
+            return HttpResponse("У вас нет прав для отображения этой информации", status=400)
+        
         objs = Room.objects.all()
         data = []
         for obj in objs:
@@ -65,11 +70,10 @@ class RoomsViewset(mixins.CreateModelMixin,
                 "number": obj.number,
                 "price": obj.price,
                 "description": obj.description,
-                "user_nickname": obj.user,
-                "user_first_name": obj.user_first_name
+                "user": obj.user,
             })
             
-        df = pandas.DataFrame(data=data, columns=['id', 'number', 'price', 'description'])
+        df = pandas.DataFrame(data=data, columns=['id', 'number', 'price', 'description', 'user'])
         output = BytesIO()
         writer = pandas.ExcelWriter(output,engine='xlsxwriter')
         df.to_excel(writer, index=False)
@@ -90,6 +94,17 @@ class RoomsViewset(mixins.CreateModelMixin,
         avg = serializers.FloatField()
         max = serializers. IntegerField()
         min = serializers. IntegerField()
+        author = serializers. CharField()
+        
+        def to_representation(self, instance):
+            data = super().to_representation(instance)
+            return {
+                "Количество комнат": data['count'],
+                "Средняя цена номера": data['avg'],
+                "Максимальная цена номера":data['max'],
+                "Минимальная цена номера":data['min'],
+                "Наиболее активный автор":data['author']
+            }
     
     
     @action(detail=False, methods=["GET"], url_path="stats")
@@ -97,8 +112,14 @@ class RoomsViewset(mixins.CreateModelMixin,
         stats = Room.objects.aggregate(
             count=Count("*"),
             avg=Avg("price"),
-            max=Max("id"),
-            min=Min("id"),)
+            max=Max("price"),
+            min=Min("price"))
+        stats['author']=(User.objects
+                    .filter(author_user_room__isnull=False)
+                    .annotate(rooms_count=Count('author_user_room', distinct = True))
+                    .order_by('-rooms_count')
+                    .first())
+        stats['avg']= round(stats['avg'], 2)
         serializer = self.StatsSerializer (instance=stats)
         return Response (serializer.data)
     
@@ -144,9 +165,25 @@ class ServicesViewset(mixins.CreateModelMixin,
         avg = serializers.FloatField()
         max = serializers. IntegerField()
         min = serializers. IntegerField()
+        author = serializers.CharField()
+        
+        def to_representation(self, instance):
+            data = super().to_representation(instance)
+            return {
+                "Количество услуг": data['count'],
+                "Средняя цена услуги": data['avg'],
+                "Максимальная цена услуги": data['max'],
+                "Минимальная цена услуги": data['min'],
+                "Наиболее активный автор": data['author']
+            }
     
     @action(detail=False, url_path="export", methods=['get'])
     def import_to_excel(self, request):
+        
+        user = self.request.user
+        if not user.is_superuser:
+            return HttpResponse("У вас нет прав для отображения этой информации", status=400)
+        
         objs = Service.objects.all()
         data = []
         for obj in objs:
@@ -179,8 +216,14 @@ class ServicesViewset(mixins.CreateModelMixin,
         stats = Service.objects.aggregate(
             count=Count("*"),
             avg=Avg("price"),
-            max=Max("id"),
-            min=Min("id"),)
+            max=Max("price"),
+            min=Min("price"),)
+        stats['author']=(User.objects
+                        .filter(author_user_service__isnull=False)
+                        .annotate(services_count=Count('author_user_service', distinct=True))
+                        .order_by('-services_count')
+                        .first())
+        stats['avg'] = round(stats['avg'], 2)
         serializer = self.StatsSerializer (instance=stats)
         return Response (serializer.data)
     
@@ -223,6 +266,11 @@ class AccomodattionViewset(mixins.CreateModelMixin,
     
     @action(detail=False, url_path="export", methods=['get'])
     def import_to_excel(self, request):
+            
+        user = self.request.user
+        if not user.is_superuser:
+            return HttpResponse("У вас нет прав для отображения этой информации", status=400)
+        
         objs = Accomodattion.objects.all()
         data = []
         for obj in objs:
@@ -258,14 +306,60 @@ class AccomodattionViewset(mixins.CreateModelMixin,
         avg = serializers.FloatField()
         max = serializers. IntegerField()
         min = serializers. IntegerField()
+        client = serializers.CharField()
+        client_count= serializers.IntegerField()
+        room = serializers. IntegerField()
+        room_count = serializers. IntegerField()
+        author = serializers.CharField()
+    
+        def to_representation(self, instance):
+            data = super().to_representation(instance)
+            return {
+                "Количество проживаний": data['count'],
+                "Средняя цена проживания": data['avg'],
+                "Самое дорогое проживание": data['max'],
+                "Самое дешевое проживание": data['min'],
+                "Наиболее частый клиент": data['client'],
+                "Проживаний у этого клиента": data['client_count'],
+                "Самый популярный номер": data['room'],
+                "Проживаний в этом номере": data['room_count'],
+                "Наиболее активный автор": data['author']
+            }
     
     @action(detail=False, methods=["GET"], url_path="stats")
     def get_stats (self, request, *args,**kwargs):
         stats = Accomodattion.objects.aggregate(
             count=Count("*"),
             avg=Avg("price"),
-            max=Max("id"),
-            min=Min("id"),)
+            max=Max("price"),
+            min=Min("price"),)
+        stats['author']=(User.objects
+                        .filter(author_user__isnull=False)
+                        .annotate(accomodattion_count=Count('author_user', distinct=True))
+                        .order_by('-accomodattion_count')
+                        .first()
+                        )
+        top_client = (Accomodattion.objects
+                      .values('client')
+                      .annotate(total = Count('id'))
+                      .order_by('-total')
+                      .first())
+        client = (User.objects.get(pk=top_client['client']))
+        
+        stats['client'] = client.first_name or client.username
+        stats['client_count'] = top_client['total']
+        
+        top_room = (Accomodattion.objects
+                .values('room')
+                .annotate(total=Count('id'))
+                .order_by('-total')
+                .first())
+        room = (Room.objects.get(pk=top_room['room']))
+        
+        stats['room'] = room.number
+        stats['room_count'] = top_room['total']
+        
+        stats['avg'] = round(stats['avg'],2)
         serializer = self.StatsSerializer (instance=stats)
         return Response (serializer.data)
     
@@ -344,6 +438,11 @@ class ProvisionViewset(mixins.CreateModelMixin,
     
     @action(detail=False, url_path="export", methods=['get'])
     def import_to_excel(self, request):
+                
+        user = self.request.user
+        if not user.is_superuser:
+            return HttpResponse("У вас нет прав для отображения этой информации", status=400)
+        
         objs = Provision.objects.all()
         data = []
         for obj in objs:
@@ -379,14 +478,67 @@ class ProvisionViewset(mixins.CreateModelMixin,
         avg = serializers.FloatField()
         max = serializers. IntegerField()
         min = serializers. IntegerField()
-    
+        client = serializers.CharField(allow_null=True)
+        client_count = serializers.IntegerField()
+        service = serializers.CharField(allow_null=True)
+        service_count = serializers.IntegerField()
+        author = serializers.CharField(allow_null=True)
+        
+            
+        def to_representation(self, instance):
+            data = super().to_representation(instance)
+            return {
+                "Количество оказаний услуг": data["count"],
+                "Средняя цена оказания услуг": data["avg"],
+                "Самое дорогое оказание услуги": data["max"],
+                "Самое дешевое оказание услуги": data["min"],
+                "Наиболее частый клиент": data["client"],
+                "Услуг у этого клиента": data["client_count"],
+                "Самая популярная услуга": data["service"],
+                "Количество заказов этой услуги": data["service_count"],
+                "Наиболее активный автор": data["author"],
+            }
+        
     @action(detail=False, methods=["GET"], url_path="stats")
     def get_stats (self, request, *args,**kwargs):
         stats = Provision.objects.aggregate(
             count=Count("*"),
-            avg=Avg("id"),
-            max=Max("id"),
-            min=Min("id"),)
+            avg=Avg("price"),
+            max=Max("price"),
+            min=Min("price"),)
+
+        top_client = (
+            Provision.objects
+            .values("accomodattion__client")
+            .annotate(total=Count("id"))
+            .order_by("-total")
+            .first()
+        )
+        
+        client = User.objects.get(pk=top_client["accomodattion__client"])
+        stats["client"] = client.first_name or client.username
+        stats["client_count"] = top_client["total"]
+
+        top_service = (
+            Provision.objects
+            .values("service", "service__name")
+            .annotate(total=Count("id"))
+            .order_by("-total")
+            .first()
+        )
+        
+        stats["service"] = top_service["service__name"]
+        stats["service_count"] = top_service["total"]
+       
+        stats['author']=(User.objects
+                        .filter(author_user_provision__isnull=False)
+                        .annotate(provision_count=Count('author_user_provision', distinct=True))
+                        .order_by('-provision_count')
+                        .first()
+                        )
+    
+        stats['avg'] = round(stats['avg'], 2)
+    
         serializer = self.StatsSerializer (instance=stats)
         return Response (serializer.data)
         

@@ -61,7 +61,7 @@ class Accomodattion(models.Model):
             verbose_name_plural = "Проживания"
 
     def __str__(self)->str:
-            outputStr = "С " + str(self.in_date) + " до "+ str(self.out_date) +" " + str(self.client)
+            outputStr = "С " + str(self.in_date) + " до "+ str(self.out_date) +" " + str(self.client) + " в " +  str(self.room.number)
             return outputStr
         
     def save(self, *args, **kwargs):

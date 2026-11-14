@@ -1,6 +1,6 @@
 <script setup>
 import axios from 'axios';
-import { onBeforeMount, ref, onMounted, watch } from 'vue';
+import { onBeforeMount, ref, onMounted, watch, computed } from 'vue';
 import Cookies from 'js-cookie';
 import SearchFilters from '@/components/SearchFilters.vue'
 import { storeToRefs } from 'pinia';
@@ -8,6 +8,7 @@ import useProfileStore from '../stores/profileStore';
 import CreateProvision from '@/components/CreateProvision.vue';
 import CreateStatistics from '@/components/CreateStatistics.vue';
 import SearchService from '@/components/SearchService.vue';
+import _ from 'lodash';
 
 let provisionModal = ref(false)
 
@@ -139,10 +140,10 @@ async function fetchClients() {
 
 onBeforeMount(async () => {
   axios.defaults.headers.common['X-CSRFToken'] = Cookies.get("csrftoken");
-  await fetchServices()
-  await fetchAccomodattion()
-  await fetchEmployees()
-  await fetchClients()
+  fetchServices()
+  fetchAccomodattion()
+  fetchEmployees()
+  fetchClients()
 })
 
 async function onRemoveClick(service) {
@@ -157,7 +158,7 @@ const authorFilter = ref(null)
 const nameFilter = ref(null)
 const priceFilter = ref(null)
 
-async function fetchServices() {
+const fetchServices = _.debounce(async () => {
   loading.value = true
   const params = { page: page.value, page_size: pageItemsCount.value }
   if (authorFilter.value) params.user = authorFilter.value
@@ -167,7 +168,7 @@ async function fetchServices() {
   services.value = r.data.results
   pagesCount.value = Math.max(1, Math.ceil(r.data.count / pageItemsCount.value))
   loading.value = false
-}
+}, 300)
 
 watch([authorFilter, nameFilter, priceFilter], () => {
   if (page.value === 1) fetchServices()
@@ -180,28 +181,16 @@ watch(page, () => {
   fetchServices();
 })
 
-function label(name) {
-  return name.user_first_name ? name.user_first_name : name.user_name
-}
+let formattedService = computed (() => {
+  return services.value.map(item => ({
+    ...item,
+    user_name: item.user_first_name || item.user_name
+  }))
+})
 
-function exportExel() {
-  axios({
-    url: '/api/service/export',
-    method: 'GET',
-    responseType: 'blob',
-  }).then((response) => {
-    const href = URL.createObjectURL(response.data)
-
-    const link = document.createElement('a');
-    link.href = href;
-    link.setAttribute('download', 'Report.xlsx');
-    document.body.appendChild(link);
-    link.click();
-
-    document.body.removeChild(link);
-    URL.revokeObjectURL(href);
-  });
-}
+const exportHref = computed (()=>{
+  return '/api/service/export'
+})
 </script>
 
 <template>
@@ -214,9 +203,9 @@ function exportExel() {
         style="position:absolute; top: 0; right: 0;">
         <i class="bi bi-graph-up"></i>
       </button>
-      <button class="btn btn-info" v-if="isSuperUser" @click="exportExel()" style="position:absolute; top: 0; left: 0;">
+      <a target="blank" :href="exportHref"  class="btn btn-info" v-if="isSuperUser"  style="position:absolute; top: 0; left: 0;">
         <i class="bi bi-arrow-down-square"></i>
-      </button>
+      </a>
     </div>
 
     <div class="objects">
@@ -239,7 +228,7 @@ function exportExel() {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="service in services">
+          <tr v-for="service in formattedService">
             <td>{{ service.name }}</td>
             <td>{{ service.price }}</td>
             <td v-show="service.picture"><img :src="service.picture" type="button"
@@ -262,7 +251,7 @@ function exportExel() {
                 </button>
               </div>
             </td>
-            <td v-if="isSuperUser">{{ label(service) }}</td>
+            <td v-if="isSuperUser">{{ service.user_name }}</td>
           </tr>
         </tbody>
       </table>
