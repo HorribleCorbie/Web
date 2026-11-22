@@ -18,7 +18,6 @@ const selectedOutDate = defineModel('out_date', { default: null })
 const selectedClient = defineModel('client', { default: null })
 const selectedPrice = defineModel('price', { default: null })
 
-
 function clearNumber() {
     selectedNumber.value = null
 }

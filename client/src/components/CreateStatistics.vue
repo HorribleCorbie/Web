@@ -18,12 +18,9 @@ const modalRef = ref(null)
 let bootstrapInstance = null
 
 const fetchStats = async () => {
-    try {
-        const r = await axios.get(`/api/${props.type}/stats/`);
-        stats.value = r.data;
-    } catch (error) {
-        console.error("Ошибка при загрузке статистики:", error);
-    }
+    const r = await axios.get(`/api/${props.type}/stats/`);
+    stats.value = r.data;
+
 }
 
 onMounted(() => {
@@ -71,10 +68,10 @@ onBeforeUnmount(() => {
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body objects" v-for="(value, key) in stats">
-                        <div class="row">
-                            <div class="col">
-                                {{ key }}: {{ value }}
-                            </div>
+                    <div class="row">
+                        <div class="col">
+                            {{ key }}: {{ value }}
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">

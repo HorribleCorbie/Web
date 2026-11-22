@@ -1,9 +1,8 @@
 <script setup>
 import axios from 'axios';
 import { computed, onBeforeMount, ref, watch } from 'vue';
-import SearchFilters from '@/components/SearchFilters.vue'
+import SearchAuthors from '@/components/SearchAuthors.vue'
 import CreateAccommodattion from '@/components/CreateAccommodattion.vue';
-import ErrorModal from '@/components/ErrorModal.vue';
 import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
 import CreateStatistics from '@/components/CreateStatistics.vue';
@@ -18,8 +17,6 @@ const rooms = ref([])
 const clients = ref([])
 
 let loading = ref(false)
-let isError = ref(false)
-let textOfError = ref('')
 let accomodattionModal = ref(false)
 
 const profileStore = useProfileStore();
@@ -32,22 +29,21 @@ const {
 
 const isFormStats = ref(false)
 
-const nights = computed(() => {
-    const { in_date, out_date } = accomodattionToEdit.value || {};
-    if (!in_date || !out_date) return 0;
+const totalPrice = computed(() => {
+    const { in_date, out_date , room} = accomodattionToEdit.value || {}
+
+    if (!in_date || !out_date || !room) return 0
+
+    const roomNumber = rooms.value.find(r => r.id === room)
+
     const diff = Math.round((new Date(out_date) - new Date(in_date)) / 86400000);
     const result = diff + 1;
-    return Number.isFinite(result) && result > 0 ? result : 0;
-});
+    const days = Number.isFinite(result) && result > 0 ? result : 0
 
-const totalPrice = computed(() => {
-    const roomId = accomodattionToEdit.value?.room;
-    const { in_date, out_date } = accomodattionToEdit.value || {};
-    const room = rooms.value.find(r => r.id === roomId);
-    if (!room || nights.value <= 0 || !in_date || !out_date) return 0;
-    return room.price * nights.value;
-});
+    if (!roomNumber || days <= 0) return 0
 
+    return roomNumber.price * days
+})
 
 
 async function onAccomodattionEditClick(accomodattion) {
@@ -58,33 +54,10 @@ async function onUpdateAccomodattion() {
     const payload = {
         ...accomodattionToEdit.value,
         price: totalPrice.value,
-    };
-    try {
-        await axios.put(`/api/accomodattion/${accomodattionToEdit.value.id}/`, payload);
-        accomodattionToEdit.value = {};
-        await fetchAccomodattion();
-    } catch (error) {
-        isError.value = true;
-        const responseData = error.response?.data
-        if (Array.isArray(responseData)) {
-            textOfError.value = responseData.join('\n')
-        } else if (typeof responseData === 'object') {
-            const errorMessages = [];
-
-            for (const [field, messages] of Object.entries(responseData)) {
-
-                const fieldMessages = Array.isArray(messages) ? messages.join(', ') : messages;
-
-                errorMessages.push(`${field}: ${fieldMessages}`);
-            }
-
-            textOfError.value = errorMessages.join('\n');
-        } else if (typeof responseData === 'string') {
-            textOfError.value = allErrors
-        } else {
-            textOfError.value = error.message || 'Неизвестная ошибка';
-        }
     }
+    await axios.put(`/api/accomodattion/${accomodattionToEdit.value.id}/`, payload);
+    accomodattionToEdit.value = {};
+    await fetchAccomodattion();
 
 }
 
@@ -184,7 +157,7 @@ watch(page, () => {
                 Добавить проживание
             </button>
             <div v-if="loading">Данные загружаются, подождите...</div>
-            <search-filters v-if="isSuperUser" v-model="authorFilter" :type="'accomodattion'" />
+            <SearchAuthors v-if="isSuperUser" v-model="authorFilter" :type="'accomodattion'" />
             <SearchAccommodattion v-model:client="clientFilter" v-model:in_date="inDateFilter"
                 v-model:number="numberFilter" v-model:out_date="outDateFilter" v-model:price="priceFilter" />
 
@@ -233,7 +206,7 @@ watch(page, () => {
                     </li>
 
                     <li @click="page = page - 1" class="page-item" v-if="page - 1 > 0"><a class="page-link">{{ page - 1
-                            }}</a>
+                    }}</a>
                     </li>
                     <li class="page-item" v-if="page > 0"><span href="" class="page-link">{{ page }}</span></li>
                     <li @click="page = page + 1" class="page-item" v-if="page + 1 < pagesCount"><a class="page-link">{{
@@ -326,8 +299,6 @@ watch(page, () => {
             @success="fetchAccomodattion" />
 
         <CreateStatistics v-model="isFormStats" :type="'accomodattion'" />
-
-        <ErrorModal v-if="isError" v-model="isError" :textOfError="textOfError" />
 
         <div class="modal fade" id="deleteModal" tabindex="-1">
             <div class="modal-dialog">

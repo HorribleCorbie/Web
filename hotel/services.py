@@ -49,7 +49,6 @@ class ServiceAccomodation:
         out_date= data["out_date"]
         client = data["client"]
         room = data["room"]
-        user = data["user"]
         
         if (in_date>out_date):
             raise ValidationError("Дата въезда не может быть больше выезда.")
@@ -121,7 +120,7 @@ class ServiceProvision:
         if (quantity<=0 or quantity>100):
             raise ValidationError("Количество должно быть в диапазоне от 1 до 100")
 
-        if (accommodattion== instance["accomodattion"]):
+        if (accommodattion != instance["accomodattion"]):
             raise ValidationError("Нельзя переназначить оказание услуг")
 
         for attr, value in data.items():

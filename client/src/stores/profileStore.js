@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { ref, onBeforeMount, computed } from 'vue';
 import axios from 'axios';
 import Cookies from "js-cookie";
-import router from '@/router'; 
+import router from '@/router'
 
 const useProfileStore = defineStore('profileStore', () => {
 
@@ -13,6 +13,8 @@ const useProfileStore = defineStore('profileStore', () => {
     const role = ref(null)
     const otp_uri = ref(null)
     const isOtpReady = ref(false)
+    const time = ref(0)
+    let remainingTime = ref(0)
 
     async function fetchMe() {
         const r = await axios.get("/api/profile/me/");
@@ -25,6 +27,7 @@ const useProfileStore = defineStore('profileStore', () => {
         otp_uri.value = r.data.otp_uri
         const o = await axios.get("/api/profile/otp-status/")
         isOtpReady.value = Boolean(o.data.otp_good)
+        otpTimeout(time)
     }
 
     async function register(username, password) {
@@ -45,12 +48,17 @@ const useProfileStore = defineStore('profileStore', () => {
         router.push('/')
     }
 
-    const thisCanBeAddAndChanged = computed (() => {
-        if (role.value != 2 && isOtpReady.value)
-            return true
-        else 
-            return false
+    const thisCanBeAddAndChanged = computed(() => {
+        return role.value != 2 && isOtpReady.value
     })
+
+    function otpTimeout(time) {
+        if (time > 0) {
+            remainingTime = setTimeout(() => {
+                isOtpReady.value = false
+            }, time)
+        }
+    }
 
     async function otp_login(code) {
         const r = await axios.post('/api/profile/otp-login/', {
@@ -58,10 +66,11 @@ const useProfileStore = defineStore('profileStore', () => {
         })
         if (r.data.success) {
             isOtpReady.value = true
+            const time = r.data.time - Date.now()
+            otpTimeout(time)
             return true
         }
-        else
-        {
+        else {
             isOtpReady.value = false
             return false
         }
@@ -70,6 +79,7 @@ const useProfileStore = defineStore('profileStore', () => {
 
     async function logout() {
         await axios.post("/api/profile/logout/")
+        isOtpReady.value = false
         fetchMe();
         router.push('/login')
     }

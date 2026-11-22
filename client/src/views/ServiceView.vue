@@ -1,8 +1,7 @@
 <script setup>
 import axios from 'axios';
-import { onBeforeMount, ref, onMounted, watch, computed } from 'vue';
-import Cookies from 'js-cookie';
-import SearchFilters from '@/components/SearchFilters.vue'
+import { onBeforeMount, ref, watch, computed } from 'vue';
+import SearchAuthors from '@/components/SearchAuthors.vue'
 import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
 import CreateProvision from '@/components/CreateProvision.vue';
@@ -11,7 +10,6 @@ import SearchService from '@/components/SearchService.vue';
 import _ from 'lodash';
 
 let provisionModal = ref(false)
-
 
 const profileStore = useProfileStore();
 const {
@@ -38,6 +36,13 @@ const serviceUpdatePicture = ref()
 
 const serviceUpdatePictureURL = ref()
 const serviceAddPictureURL = ref()
+
+const page = ref(1)
+const pageItemsCount = ref(10)
+const authorFilter = ref(null)
+
+const nameFilter = ref(null)
+const priceFilter = ref(null)
 
 function clearServiceForm() {
   serviceToAdd.value = {
@@ -120,7 +125,6 @@ async function onServiceAdd() {
   await fetchServices();
 }
 
-
 async function fetchAccomodattion() {
   const s = await axios.get("/api/accomodattion/", { params: { actual: 1, all: 1 } })
   activeAccomodattions.value = s.data
@@ -136,8 +140,6 @@ async function fetchClients() {
   clients.value = r.data;
 }
 
-
-
 onBeforeMount(async () => {
   fetchServices()
   fetchAccomodattion()
@@ -150,12 +152,6 @@ async function onRemoveClick(service) {
   await fetchServices();
 }
 
-const page = ref(1)
-const pageItemsCount = ref(10)
-const authorFilter = ref(null)
-
-const nameFilter = ref(null)
-const priceFilter = ref(null)
 
 const fetchServices = _.debounce(async () => {
   loading.value = true
@@ -213,7 +209,7 @@ const exportHref = computed (()=>{
         Добавить услугу
       </button>
       <div v-if="loading">Данные загружаются, подождите...</div>
-      <search-filters v-if="isSuperUser" v-model="authorFilter" :type="'service'" />
+      <SearchAuthors v-if="isSuperUser" v-model="authorFilter" :type="'service'" />
       <SearchService v-model:name="nameFilter" v-model:price="priceFilter" />
       <div v-if="!loading && services.length == 0" style="text-align: center;">У вас нет услуг</div>
       <table class="table">

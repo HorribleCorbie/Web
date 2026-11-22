@@ -2,13 +2,12 @@
 import useProfileStore from '../stores/profileStore';
 import { storeToRefs } from 'pinia';
 
-
 const profileStore = useProfileStore();
 const {
     isAuthenticated,
-    userName
+    userName,
+    role
 } = storeToRefs(profileStore)
-
 
 async function onLogoutButtonClick() {
     profileStore.logout();
@@ -55,7 +54,7 @@ async function onLogoutButtonClick() {
                             <li><a class="dropdown-item" href="/admin">Админка</a></li>
                         </ul>
                     </li>
-                    <router-link v-if="isAuthenticated"  class="nav-link" to="/qrcode">
+                    <router-link v-if="isAuthenticated && role != 2"  class="nav-link" to="/qrcode">
                         <a class="btn btn-warning">
                             <i class="bi bi-qr-code-scan"></i>
                         </a>

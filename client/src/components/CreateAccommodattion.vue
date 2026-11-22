@@ -2,9 +2,13 @@
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import axios from 'axios';
 import useProfileStore from '../stores/profileStore';
-import ErrorModal from '@/components/ErrorModal.vue';
 import { Modal } from 'bootstrap';
 import { storeToRefs } from 'pinia';
+
+const profileStore = useProfileStore();
+const {
+    id,
+} = storeToRefs(profileStore)
 
 const props = defineProps({
     rooms: {
@@ -30,11 +34,6 @@ const isFormValid = computed(() => {
     const { room, in_date, out_date } = accomodattionToAdd.value;
     return (room && in_date && out_date);
 });
-
-const profileStore = useProfileStore();
-const {
-    id,
-} = storeToRefs(profileStore)
 
 const modalRef = ref([])
 let bootstrapInstance = null
@@ -73,33 +72,29 @@ onBeforeUnmount(() => {
     bootstrapInstance?.dispose();
 });
 
-function clearForm(){
+function clearForm() {
     accomodattionToAdd.value = {
-            room: null,
-            in_date: '',
-            out_date: ''
-        };
+        room: null,
+        in_date: '',
+        out_date: ''
+    };
 }
 
-let isError = ref(false)
-let textOfError = ref()
+const totalPrice = computed(() => {
+    const { in_date, out_date , room} = accomodattionToAdd.value || {}
 
+    if (!in_date || !out_date || !room) return 0
 
-const nights = computed(() => {
-    const { in_date, out_date } = accomodattionToAdd.value || {};
-    if (!in_date || !out_date) return 0;
+    const roomNumber = props.rooms.find(r => r.id === room)
+
     const diff = Math.round((new Date(out_date) - new Date(in_date)) / 86400000);
     const result = diff + 1;
-    return Number.isFinite(result) && result > 0 ? result : 0;
-});
+    const days = Number.isFinite(result) && result > 0 ? result : 0
 
-const totalPrice = computed(() => {
-    const roomId = accomodattionToAdd.value?.room;
-    const { in_date, out_date } = accomodattionToAdd.value || {};
-    const room = props.rooms.find(r => r.id === roomId);
-    if (!room || nights.value <= 0 || !in_date || !out_date) return 0;
-    return room.price * nights.value;
-});
+    if (!roomNumber || days <= 0) return 0
+
+    return roomNumber.price * days
+})
 
 async function onAccomodattionAdd() {
     const payload = {
@@ -107,34 +102,10 @@ async function onAccomodattionAdd() {
         price: totalPrice.value,
         client: client.value,
         user: id.value
-    };
-    try {
-        await axios.post("/api/accomodattion/", payload);
-        closeModal();
-        emit('success')
-    } catch (error) {
-        isError.value = true;
-        const responseData = error.response?.data
-        if (Array.isArray(responseData)) {
-            textOfError.value = responseData.join('\n')
-        } else if (typeof responseData === 'object') {
-            const errorMessages = [];
-
-            for (const [field, messages] of Object.entries(responseData)) {
-
-                const fieldMessages = Array.isArray(messages) ? messages.join(', ') : messages;
-
-                errorMessages.push(`${field}: ${fieldMessages}`);
-            }
-
-            textOfError.value = errorMessages.join('\n');
-        } else if (typeof responseData === 'string') {
-            textOfError.value = responseData
-        } else {
-            textOfError.value = error.message || 'Неизвестная ошибка';
-        }
-
     }
+    await axios.post("/api/accomodattion/", payload);
+    closeModal();
+    emit('success')
 }
 
 </script>
@@ -181,7 +152,7 @@ async function onAccomodattionAdd() {
                             </div>
                         </div>
                     </div>
-                    <div class="row" v-if="clients.length>=2">
+                    <div class="row" v-if="clients.length >= 2">
                         <div class="col">
                             <div class="form-floating">
                                 <select class="form-select" v-model="client" required>
@@ -203,6 +174,4 @@ async function onAccomodattionAdd() {
             </div>
         </div>
     </div>
-
-    <ErrorModal v-if="isError" v-model="isError" :textOfError="textOfError" />
 </template>

@@ -43,15 +43,13 @@ async function otp() {
                 </h3>
 
                 <input type="text" v-model="code" class="form-control" placeholder="Ведите ваш код" maxlength="6" />
-                <button class="btn btn-outline-secondary" type="button" @click="otp()">Ввести код</button>
+                <button class="btn btn-outline-success" type="button" @click="otp()">Ввести код</button>
             </div>
             <div v-else>
                 <h3>
                     Вы успешно подтвердили свой аккаунт
                 </h3>
             </div>
-
         </div>
-
     </div>
 </template>

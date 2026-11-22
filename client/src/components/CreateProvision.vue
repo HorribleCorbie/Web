@@ -2,10 +2,13 @@
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import axios from 'axios';
 import useProfileStore from '../stores/profileStore';
-import ErrorModal from '@/components/ErrorModal.vue';
 import { Modal } from 'bootstrap';
 import { storeToRefs } from 'pinia';
 
+const profileStore = useProfileStore();
+const {
+    id,
+} = storeToRefs(profileStore)
 
 const props = defineProps({
     services: {
@@ -38,11 +41,6 @@ const isFormValid = computed(() => {
     const { service, quantity, accomodattion } = provisionToAdd.value
     return (service && totalPrice.value > 0 && Number(quantity) > 0 && accomodattion)
 })
-
-const profileStore = useProfileStore();
-const {
-    id,
-} = storeToRefs(profileStore)
 
 const modalRef = ref([])
 let bootstrapInstance = null
@@ -91,10 +89,6 @@ function clearForm() {
     };
 }
 
-let isError = ref(false)
-let textOfError = ref()
-
-
 const totalPrice = computed(() => {
     if (provisionToAdd.value.quantity != undefined && provisionToAdd.value.service) {
         const quantity = provisionToAdd.value.quantity
@@ -102,18 +96,14 @@ const totalPrice = computed(() => {
         return quantity * service.price
     }
     return 0
-});
+})
 
 
 function accomodattionLabel(id) {
-    const acc = findAccomodattion(id);
+    const acc = props.accomodattions.find(x => x.id === id)
     if (acc != undefined) return `Клиент: ${acc.client_name ? acc.client_name : acc.client_user}, даты: ${acc.in_date} по ${acc.out_date}`;
 }
 
-function findAccomodattion(id_accomodattion) {
-    const accomodattion = props.accomodattions.find(x => x.id === id_accomodattion)
-    return accomodattion
-}
 
 async function onProvisionAdd() {
     const payload = {
@@ -121,34 +111,9 @@ async function onProvisionAdd() {
         price: totalPrice.value,
         user: id.value
     };
-    try {
-        await axios.post("/api/provision/", payload);
-        closeModal()
-        emit('success')
-    } catch (error) {
-        isError.value = true;
-        const responseData = error.response?.data
-        if (Array.isArray(responseData)) {
-            textOfError.value = responseData.join('\n')
-        } else if (typeof responseData === 'object') {
-            const errorMessages = [];
-
-            for (const [field, messages] of Object.entries(responseData)) {
-
-                const fieldMessages = Array.isArray(messages) ? messages.join(', ') : messages;
-
-                errorMessages.push(`${field}: ${fieldMessages}`);
-            }
-
-            textOfError.value = errorMessages.join('\n');
-        } else if (typeof responseData === 'string') {
-            textOfError.value = responseData
-        } else {
-            textOfError.value = error.message || 'Неизвестная ошибка';
-        }
-
-    }
-
+    await axios.post("/api/provision/", payload);
+    closeModal()
+    emit('success')
 }
 
 </script>
@@ -158,7 +123,7 @@ async function onProvisionAdd() {
             <div class="modal-content">
                 <div class="modal-header">
                     <h1 class="modal-title fs-5">
-                        Изменение оказания услуги
+                        Создание оказания услуги
                     </h1>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -193,7 +158,7 @@ async function onProvisionAdd() {
                     </div>
                     <div class="row" v-if="accomodattions.length == 0">
                         <div class="col">
-                           {{ provisionToAdd.accomodattion }}
+                            {{ provisionToAdd.accomodattion }}
                         </div>
                     </div>
                     <div class="row">
@@ -227,6 +192,4 @@ async function onProvisionAdd() {
             </div>
         </div>
     </div>
-
-    <ErrorModal v-if="isError" v-model="isError" :textOfError="textOfError" />
 </template>

@@ -1,9 +1,7 @@
 <script setup>
 import axios from 'axios';
 import { computed, onBeforeMount, ref, watch } from 'vue';
-import Cookies from 'js-cookie';
-import SearchFilters from '@/components/SearchFilters.vue'
-import ErrorModal from '@/components/ErrorModal.vue';
+import SearchAuthors from '@/components/SearchAuthors.vue'
 import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
 import CreateProvision from '@/components/CreateProvision.vue';
@@ -32,9 +30,6 @@ const employees = ref([])
 const services = ref([])
 
 let loading = ref(false)
-let isError = ref(false)
-let textOfError = ref()
-
 
 const isFormStats = ref(false)
 
@@ -47,7 +42,6 @@ const totalPrice = computed(() => {
     return 0
 });
 
-
 function findCLient(id_accomodattion) {
     const accomodattion = findAccomodattion(id_accomodattion)
     if (accomodattion != undefined) {
@@ -55,7 +49,6 @@ function findCLient(id_accomodattion) {
         return client != undefined ? (client.first_name ? client.first_name : client.username) : id_accomodattion
     }
 }
-
 
 function findAccomodattion(id_accomodattion) {
     const accomodattion = accomodattions.value.find(x => x.id === id_accomodattion)
@@ -68,9 +61,7 @@ function findService(id_service) {
 }
 
 async function onProvisionEditClick(provision) {
-    console.log('Исходный объект:', provision);
     provisionToEdit.value = { ...provision };
-    console.log('Объект для редактирования:', provisionToEdit.value);
 }
 
 async function onUpdateProvision() {
@@ -81,35 +72,12 @@ async function onUpdateProvision() {
         employee: provisionToEdit.value.employee,
         price: totalPrice.value,
         user: id.value
-    };
-    try {
-        await axios.put(`/api/provision/${provisionToEdit.value.id}/`, payload);
-        await fetchProvision();
-        provisionToEdit.value = {}
-    } catch (error) {
-        isError.value = true;
-        const responseData = error.response?.data
-        if (Array.isArray(responseData)) {
-            textOfError.value = responseData.join('\n')
-        } else if (typeof responseData === 'object') {
-            const errorMessages = [];
-
-            for (const [field, messages] of Object.entries(responseData)) {
-
-                const fieldMessages = Array.isArray(messages) ? messages.join(', ') : messages;
-
-                errorMessages.push(`${field}: ${fieldMessages}`);
-            }
-
-            textOfError.value = errorMessages.join('\n');
-        } else if (typeof responseData === 'string') {
-            textOfError.value = allErrors
-        } else {
-            textOfError.value = error.message || 'Неизвестная ошибка';
-        }
     }
-}
+    await axios.put(`/api/provision/${provisionToEdit.value.id}/`, payload);
+    await fetchProvision();
+    provisionToEdit.value = {}
 
+}
 
 async function fetchServices() {
     const s = await axios.get("/api/service/", { params: { all: 1 } })
@@ -144,14 +112,12 @@ async function onRemoveClick(provision) {
     await fetchProvision();
 }
 
-
 const page = ref(1)
 const pageItemsCount = ref(10)
 const authorFilter = ref(null)
 const serviceFilter = ref(null)
 const quantityFilter = ref(null)
 const priceFilter = ref(null)
-
 const clientFilter = ref(null)
 const numberFilter = ref(null)
 const inDateFilter = ref(null)
@@ -220,7 +186,7 @@ const exportHref = computed(() => {
                 Добавить оказание услуги
             </button>
             <div v-if="loading">Данные загружаются, подождите...</div>
-            <search-filters v-if="isSuperUser" v-model="authorFilter" :type="'provision'" />
+            <SearchAuthors v-if="isSuperUser" v-model="authorFilter" :type="'provision'" />
             <SearchProvision v-model:name="serviceFilter" v-model:quantity="quantityFilter"
                 v-model:price="priceFilter" />
             <div style="text-align: center;">Поиск по проживанию</div>
@@ -271,7 +237,7 @@ const exportHref = computed(() => {
                     </li>
 
                     <li @click="page = page - 1" class="page-item" v-if="page - 1 > 0"><a class="page-link">{{ page - 1
-                    }}</a>
+                            }}</a>
                     </li>
                     <li class="page-item" v-if="page > 0"><span href="" class="page-link">{{ page }}</span></li>
                     <li @click="page = page + 1" class="page-item" v-if="page + 1 < pagesCount"><a class="page-link">{{
@@ -371,7 +337,6 @@ const exportHref = computed(() => {
         <CreateProvision v-model="provisionModal" :services="services" :accomodattions="activeAccomodattions"
             :clients="clients" :employees="thisCanBeAddAndChanged ? employees : undefined" @success="fetchProvision" />
 
-        <ErrorModal v-if="isError" v-model="isError" :textOfError="textOfError" />
 
         <div class="modal fade" id="deleteModal" tabindex="-1">
             <div class="modal-dialog">

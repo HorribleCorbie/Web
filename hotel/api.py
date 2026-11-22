@@ -14,8 +14,10 @@ from django.db.models import Q
 from django.contrib.auth import logout as django_logout
 from django.contrib.auth import login as django_login
 from django.contrib.auth import authenticate
-from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
+from rest_framework.permissions import AllowAny, BasePermission
 import pyotp
+from datetime import timedelta
+from django.utils import timezone
 
 from hotel.models import *
 from hotel.serializers import *
@@ -28,11 +30,11 @@ class RoomsViewset(mixins.CreateModelMixin,
                    GenericViewSet):
     queryset = Room.objects.select_related('user').prefetch_related('picture').order_by('number')
     serializer_class = RoomSerializer 
-    
+        
     def get_permissions(self):
-        if self.action in ["update", "partial_update", "destroy", "get_stats", "import_to_excel"]:
-            return [IsAuthenticated(), OTPRequired()]
-        return [AllowAny()]
+        if self.action in ['list', 'create', 'authors']:
+            return [AllowAny()]
+        return [OTPRequired(), RolePermission()]
     
     def get_queryset(self):
         qs =super().get_queryset()
@@ -50,12 +52,15 @@ class RoomsViewset(mixins.CreateModelMixin,
         if (price := p.get('price')) and price.isdigit():
             qs = qs.filter(price__lte=price).order_by('price')
         
-        
         return qs
-    
     
     @action(detail=False, url_path="authors", methods=['get'])
     def authors(self, request):
+        user = self.request.user
+                
+        if not user.is_superuser:
+            return HttpResponse("У вас нет прав для отображения этой информации", status=403)
+        
         qs = (User.objects
             .filter(author_user_room__isnull=False)
             .values('id', 'username', 'first_name')
@@ -68,7 +73,7 @@ class RoomsViewset(mixins.CreateModelMixin,
         
         user = self.request.user
         if not user.is_superuser:
-            return HttpResponse("У вас нет прав для отображения этой информации", status=400)
+            return HttpResponse("У вас нет прав для отображения этой информации", status=403)
         
         objs = Room.objects.all()
         data = []
@@ -95,41 +100,38 @@ class RoomsViewset(mixins.CreateModelMixin,
         )
         response['Content-Disposition'] = 'attachment; filename=Report.xlsx'
 
-        return response
-    
-    class StatsSerializer (serializers.Serializer):
-        count = serializers. IntegerField()
-        avg = serializers.FloatField()
-        max = serializers. IntegerField()
-        min = serializers. IntegerField()
-        author = serializers. CharField()
-        
-        def to_representation(self, instance):
-            data = super().to_representation(instance)
-            return {
-                "Количество комнат": data['count'],
-                "Средняя цена номера": data['avg'],
-                "Максимальная цена номера":data['max'],
-                "Минимальная цена номера":data['min'],
-                "Наиболее активный автор":data['author']
-            }
-    
+        return response     
     
     @action(detail=False, methods=["GET"], url_path="stats")
     def get_stats (self, request, *args,**kwargs):
+        user = self.request.user
+                
+        if not user.is_superuser:
+            return HttpResponse("У вас нет прав для отображения этой информации", status=403) 
+        
         stats = Room.objects.aggregate(
             count=Count("*"),
             avg=Avg("price"),
             max=Max("price"),
             min=Min("price"))
+        
         stats['author']=(User.objects
                     .filter(author_user_room__isnull=False)
                     .annotate(rooms_count=Count('author_user_room', distinct = True))
                     .order_by('-rooms_count')
                     .first())
+        
         stats['avg']= round(stats['avg'], 2)
-        serializer = self.StatsSerializer (instance=stats)
-        return Response (serializer.data)
+        
+        return Response (
+            {
+                "Количество комнат": stats['count'],
+                "Средняя цена номера": stats['avg'],
+                "Максимальная цена номера":stats['max'],
+                "Минимальная цена номера":stats['min'],
+                "Наиболее активный автор":str(stats['author'])
+            }
+        )
     
     def perform_create(self, serializer):
         room = serializer.save()
@@ -167,35 +169,19 @@ class ServicesViewset(mixins.CreateModelMixin,
                       GenericViewSet):
     queryset= Service.objects.select_related('user')
     serializer_class = ServiceSerializer
-    
-    def get_permissions(self):
-        if self.action in ["update", "partial_update", "destroy", "get_stats", "import_to_excel"]:
-            return [IsAuthenticated(), OTPRequired()]
-        return [AllowAny()]
-    
-    class StatsSerializer (serializers.Serializer):
-        count = serializers. IntegerField()
-        avg = serializers.FloatField()
-        max = serializers. IntegerField()
-        min = serializers. IntegerField()
-        author = serializers.CharField()
         
-        def to_representation(self, instance):
-            data = super().to_representation(instance)
-            return {
-                "Количество услуг": data['count'],
-                "Средняя цена услуги": data['avg'],
-                "Максимальная цена услуги": data['max'],
-                "Минимальная цена услуги": data['min'],
-                "Наиболее активный автор": data['author']
-            }
-    
+    def get_permissions(self):
+        if self.action in ['list', 'create', 'authors']:
+            return [AllowAny()]
+        else:
+            return [OTPRequired(), RolePermission()]
+   
     @action(detail=False, url_path="export", methods=['get'])
     def import_to_excel(self, request):
         
         user = self.request.user
         if not user.is_superuser:
-            return HttpResponse("У вас нет прав для отображения этой информации", status=400)
+            return HttpResponse("У вас нет прав для отображения этой информации", status=403)
         
         objs = Service.objects.all()
         data = []
@@ -226,22 +212,39 @@ class ServicesViewset(mixins.CreateModelMixin,
     
     @action(detail=False, methods=["GET"], url_path="stats")
     def get_stats (self, request, *args,**kwargs):
+        user = self.request.user
+                
+        if not user.is_superuser:
+            return HttpResponse("У вас нет прав для отображения этой информации", status=403) 
         stats = Service.objects.aggregate(
             count=Count("*"),
             avg=Avg("price"),
             max=Max("price"),
             min=Min("price"),)
+        
         stats['author']=(User.objects
                         .filter(author_user_service__isnull=False)
                         .annotate(services_count=Count('author_user_service', distinct=True))
                         .order_by('-services_count')
                         .first())
+        
         stats['avg'] = round(stats['avg'], 2)
-        serializer = self.StatsSerializer (instance=stats)
-        return Response (serializer.data)
+        
+        return Response ({
+                "Количество услуг": stats['count'],
+                "Средняя цена услуги": stats['avg'],
+                "Максимальная цена услуги": stats['max'],
+                "Минимальная цена услуги": stats['min'],
+                "Наиболее активный автор": str(stats['author'])
+                })
     
     @action(detail=False, url_path="authors", methods=['get'])
-    def authors(self, request):
+    def authors(self, request):        
+        user = self.request.user
+                
+        if not user.is_superuser:
+            return HttpResponse("У вас нет прав для отображения этой информации", status=403)
+        
         qs = (User.objects
             .filter(author_user_service__isnull=False)
             .values('id', 'username', 'first_name')
@@ -278,16 +281,16 @@ class AccomodattionViewset(mixins.CreateModelMixin,
     serializer_class = AccomodattionSerializer
         
     def get_permissions(self):
-        if self.action in ["update", "partial_update", "destroy", "get_stats", "import_to_excel"]:
-            return [IsAuthenticated(), OTPRequired()]
-        return [AllowAny()]
+        if self.action in ['list', 'create', 'authors']:
+            return [AllowAny()]
+        return [OTPRequired(), RolePermission()]
     
     @action(detail=False, url_path="export", methods=['get'])
     def import_to_excel(self, request):
             
         user = self.request.user
         if not user.is_superuser:
-            return HttpResponse("У вас нет прав для отображения этой информации", status=400)
+            return HttpResponse("У вас нет прав для отображения этой информации", status=403)
         
         objs = Accomodattion.objects.all()
         data = []
@@ -301,7 +304,6 @@ class AccomodattionViewset(mixins.CreateModelMixin,
                 "user_name": obj.user,
             })
         
-            
         df = pandas.DataFrame(data=data, columns=['id', 'in_date', 'out_date', 
                                                   'room', 'client', 'user_name'])
         output = BytesIO()
@@ -319,33 +321,14 @@ class AccomodattionViewset(mixins.CreateModelMixin,
 
         return response
     
-    class StatsSerializer (serializers.Serializer):
-        count = serializers. IntegerField()
-        avg = serializers.FloatField()
-        max = serializers. IntegerField()
-        min = serializers. IntegerField()
-        client = serializers.CharField()
-        client_count= serializers.IntegerField()
-        room = serializers. IntegerField()
-        room_count = serializers. IntegerField()
-        author = serializers.CharField()
-    
-        def to_representation(self, instance):
-            data = super().to_representation(instance)
-            return {
-                "Количество проживаний": data['count'],
-                "Средняя цена проживания": data['avg'],
-                "Самое дорогое проживание": data['max'],
-                "Самое дешевое проживание": data['min'],
-                "Наиболее частый клиент": data['client'],
-                "Проживаний у этого клиента": data['client_count'],
-                "Самый популярный номер": data['room'],
-                "Проживаний в этом номере": data['room_count'],
-                "Наиболее активный автор": data['author']
-            }
     
     @action(detail=False, methods=["GET"], url_path="stats")
     def get_stats (self, request, *args,**kwargs):
+        user = self.request.user
+                
+        if not user.is_superuser:
+            return HttpResponse("У вас нет прав для отображения этой информации", status=403)  
+        
         stats = Accomodattion.objects.aggregate(
             count=Count("*"),
             avg=Avg("price"),
@@ -378,11 +361,28 @@ class AccomodattionViewset(mixins.CreateModelMixin,
         stats['room_count'] = top_room['total']
         
         stats['avg'] = round(stats['avg'],2)
-        serializer = self.StatsSerializer (instance=stats)
-        return Response (serializer.data)
+        
+        return Response (
+            {
+                "Количество проживаний": stats['count'],
+                "Средняя цена проживания": stats['avg'],
+                "Самое дорогое проживание": stats['max'],
+                "Самое дешевое проживание": stats['min'],
+                "Наиболее частый клиент": str(stats['client']),
+                "Проживаний у этого клиента": stats['client_count'],
+                "Самый популярный номер": stats['room'],
+                "Проживаний в этом номере": stats['room_count'],
+                "Наиболее активный автор": str(stats['author'])
+            }
+        )
     
     @action(detail=False, url_path="authors", methods=['get'])
-    def authors(self, request):
+    def authors(self, request):        
+        user = self.request.user
+                
+        if not user.is_superuser:
+            return HttpResponse("У вас нет прав для отображения этой информации", status=403)
+        
         qs = (User.objects
             .filter(author_user__isnull=False)
             .values('id', 'username', 'first_name')
@@ -436,8 +436,6 @@ class AccomodattionViewset(mixins.CreateModelMixin,
                 )
 
         return qs
-        
-        
 
 class ProvisionViewset(mixins.CreateModelMixin, 
                        mixins.DestroyModelMixin, 
@@ -453,18 +451,18 @@ class ProvisionViewset(mixins.CreateModelMixin,
         'user'
     )
     serializer_class = ProvisionSerializer
-        
+            
     def get_permissions(self):
-        if self.action in ["update", "partial_update", "destroy", "get_stats", "import_to_excel"]:
-            return [IsAuthenticated(), OTPRequired()]
-        return [AllowAny()]
+        if self.action in ['list', 'create', 'authors']:
+            return [AllowAny()]
+        return [OTPRequired(), RolePermission()]
     
     @action(detail=False, url_path="export", methods=['get'])
     def import_to_excel(self, request):
                 
         user = self.request.user
         if not user.is_superuser:
-            return HttpResponse("У вас нет прав для отображения этой информации", status=400)
+            return HttpResponse("У вас нет прав для отображения этой информации", status=403)
         
         objs = Provision.objects.all()
         data = []
@@ -477,7 +475,6 @@ class ProvisionViewset(mixins.CreateModelMixin,
                 "accomodattion": obj.accomodattion,
                 "user": obj.user,
             })
-        
             
         df = pandas.DataFrame(data=data, columns=['id', 'quantity', 'service', 
                                                   'employee', 'accomodattion', 'user'])
@@ -495,40 +492,20 @@ class ProvisionViewset(mixins.CreateModelMixin,
         response['Content-Disposition'] = 'attachment; filename=Report.xlsx'
 
         return response
-    
-    class StatsSerializer (serializers.Serializer):
-        count = serializers. IntegerField()
-        avg = serializers.FloatField()
-        max = serializers. IntegerField()
-        min = serializers. IntegerField()
-        client = serializers.CharField(allow_null=True)
-        client_count = serializers.IntegerField()
-        service = serializers.CharField(allow_null=True)
-        service_count = serializers.IntegerField()
-        author = serializers.CharField(allow_null=True)
-        
-            
-        def to_representation(self, instance):
-            data = super().to_representation(instance)
-            return {
-                "Количество оказаний услуг": data["count"],
-                "Средняя цена оказания услуг": data["avg"],
-                "Самое дорогое оказание услуги": data["max"],
-                "Самое дешевое оказание услуги": data["min"],
-                "Наиболее частый клиент": data["client"],
-                "Услуг у этого клиента": data["client_count"],
-                "Самая популярная услуга": data["service"],
-                "Количество заказов этой услуги": data["service_count"],
-                "Наиболее активный автор": data["author"],
-            }
         
     @action(detail=False, methods=["GET"], url_path="stats")
     def get_stats (self, request, *args,**kwargs):
+        user = self.request.user
+                
+        if not user.is_superuser:
+            return HttpResponse("У вас нет прав для отображения этой информации", status=403) 
+        
         stats = Provision.objects.aggregate(
             count=Count("*"),
             avg=Avg("price"),
             max=Max("price"),
-            min=Min("price"),)
+            min=Min("price"),
+        )
 
         top_client = (
             Provision.objects
@@ -562,12 +539,27 @@ class ProvisionViewset(mixins.CreateModelMixin,
     
         stats['avg'] = round(stats['avg'], 2)
     
-        serializer = self.StatsSerializer (instance=stats)
-        return Response (serializer.data)
-        
+        return Response (
+            {
+                "Количество оказаний услуг": stats["count"],
+                "Средняя цена оказания услуг": stats["avg"],
+                "Самое дорогое оказание услуги": stats["max"],
+                "Самое дешевое оказание услуги": stats["min"],
+                "Наиболее частый клиент": str(stats["client"]),
+                "Услуг у этого клиента": stats["client_count"],
+                "Самая популярная услуга": stats["service"],
+                "Количество заказов этой услуги": stats["service_count"],
+                "Наиболее активный автор": str(stats["author"]),
+            }
+        )
     
     @action(detail=False, url_path="authors", methods=['get'])
     def authors(self, request):
+        user = self.request.user
+        
+        if not user.is_superuser:
+            return HttpResponse("У вас нет прав для отображения этой информации", status=403)
+        
         qs = (User.objects
             .filter(author_user_provision__isnull=False)
             .values('id', 'username', 'first_name')
@@ -627,7 +619,6 @@ class ProvisionViewset(mixins.CreateModelMixin,
 
         return qs
 
-
 class UserViewset(mixins.CreateModelMixin, 
                        mixins.DestroyModelMixin, 
                        mixins.UpdateModelMixin, 
@@ -651,9 +642,13 @@ class UserViewset(mixins.CreateModelMixin,
     
 class OTPRequired(BasePermission):
     def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        return bool(cache.get(f"otp_good_{request.user.id}", False))
+        return bool(request.user and cache.get('otp_good', False))
+    
+class RolePermission(BasePermission):
+    def has_permission(self, request, view):
+        if (not request.user or not request.user.is_authenticated or not hasattr(request.user, 'profile') ):
+            return bool(False)
+        return bool(request.user.profile.role!=2)
     
 class ProfileViewSet(GenericViewSet):
     queryset = User.objects.all()
@@ -667,7 +662,6 @@ class ProfileViewSet(GenericViewSet):
             'is_authenticated': self.request.user.is_authenticated,
             'is_superuser': self.request.user.is_superuser
         }
-        
 
         if self.request.user.is_authenticated:
             uri = pyotp.totp.TOTP(self.request.user.profile.otp_key).provisioning_uri(name=self.request.user.username, issuer_name='Hotel App')
@@ -684,6 +678,7 @@ class ProfileViewSet(GenericViewSet):
 
     @action(detail=False, url_path="logout", methods=['POST'], permission_classes=[])
     def logout(self, *args, **kwargs):
+        cache.set('otp_good', False)
         django_logout(self.request)
 
         return Response()
@@ -695,20 +690,26 @@ class ProfileViewSet(GenericViewSet):
 
         success = False
         status_code = 403
+        detail = ''
         
         user = authenticate(username=username, password=password)
         if user:
             success = True
             status_code = 200
             django_login(self.request, user)
-
-        if not self.request.user.profile.otp_key: 
+        else:
+            status_code = 401
+            detail = 'Не удалось войти в аккаунт, проверьте данные.'
+           
+        
+        if success and not user.profile.otp_key: 
             self.request.user.profile.otp_key = pyotp.random_base32()
             self.request.user.profile.save()
 
         return Response({
             'success': success,
-            'is_authenticated': bool(user)
+            'is_authenticated': bool(user),
+            'detail': detail if detail else ''
         }, status=status_code)
 
     @action(detail=False, url_path='otp-login', methods=['POST'], serializer_class=OTPSerializer)
@@ -720,12 +721,17 @@ class ProfileViewSet(GenericViewSet):
         serializer.is_valid(raise_exception=True)
 
         success = False
+        
+        interval = timedelta(hours= 1)
+        date_now = timezone.now() + interval
+        
         if totp.now() == serializer.validated_data['key']:
-            cache.set('otp_good', True, 100)
+            cache.set('otp_good', True, interval.total_seconds())
             success = True
 
         return Response({
-            'success': success
+            'success': success,
+            'time': date_now.timestamp()*1000 if success else 0,
         })
         
 

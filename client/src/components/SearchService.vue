@@ -1,8 +1,6 @@
 <script setup>
-
 const selectedName = defineModel('name', { default: null })
 const selectedPrice = defineModel('price', { default: null })
-
 
 function clearName() {
     selectedName.value = null
@@ -11,7 +9,6 @@ function clearName() {
 function clearPrice() {
     selectedPrice.value = null
 }
-
 
 function clearAll() {
     clearPrice()
@@ -23,7 +20,7 @@ function clearAll() {
 
     <div class="search-div">
         <div class="input-group">
-            <input type="text" v-model="selectedName" class="form-control" placeholder="Найти номер..." min="1" />
+            <input type="text" v-model="selectedName" class="form-control" placeholder="Найти услугу..." />
             <button v-if="selectedName !== null" class="btn btn-outline-secondary" type="button"
                 @click="clearName">✕</button>
         </div>

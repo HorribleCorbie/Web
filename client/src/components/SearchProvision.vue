@@ -3,7 +3,6 @@ const selectedPrice = defineModel('price', { default: null })
 const selectedQuantity = defineModel('quantity', { default: null })
 const selectedName = defineModel('name', { default: null })
 
-
 function clearName() {
     selectedName.value = null
 }

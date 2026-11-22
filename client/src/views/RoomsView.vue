@@ -1,7 +1,7 @@
 <script setup>
 import axios from 'axios';
 import { onBeforeMount, ref, toRaw, computed, watch } from 'vue';
-import SearchFilters from '@/components/SearchFilters.vue'
+import SearchAuthors from '@/components/SearchAuthors.vue'
 import { storeToRefs } from 'pinia';
 import useProfileStore from '../stores/profileStore';
 import CreateAccommodattion from '@/components/CreateAccommodattion.vue';
@@ -20,7 +20,6 @@ const {
   role
 } = storeToRefs(profileStore)
 
-
 const page = ref(1);
 const pageItemsCount = ref(10);
 const rooms = ref([])
@@ -28,13 +27,18 @@ const selectedRoom = ref([])
 let loading = ref(false)
 const clients = ref([])
 
-const roomToAdd = ref({});
-const roomToEdit = ref({});
+const roomToAdd = ref({})
+const roomToEdit = ref({})
 
-const roomsPictureRef = ref([]);
-const roomsEditPictureRef = ref([]);
+const roomsPictureRef = ref([])
+const roomsEditPictureRef = ref([])
 const roomAddImageUrl = ref([])
 const roomUpdateImageUrl = ref([])
+
+const authorFilter = ref(null)
+const numberFilter = ref(null)
+const descriptionFilter = ref(null)
+const priceFilter = ref(null)
 
 const newDownloadedImages = ref({})
 const selectedImages = ref([])
@@ -169,11 +173,6 @@ async function fetchClients() {
   clients.value = await fetchAll('/api/users/', { role: 2 })
 }
 
-const authorFilter = ref(null)
-const numberFilter = ref(null)
-const descriptionFilter = ref(null)
-const priceFilter = ref(null)
-
 const fetchRooms = _.debounce(async () => {
   loading.value = true
   const params = { page: page.value, page_size: pageItemsCount.value }
@@ -242,7 +241,7 @@ let formattedRooms = computed(() => {
         Добавить номер
       </button>
       <div v-if="loading">Данные загружаются, подождите...</div>
-      <search-filters v-if="isSuperUser" v-model="authorFilter" :type="'rooms'" />
+      <SearchAuthors v-if="isSuperUser" v-model="authorFilter" :type="'rooms'" />
 
       <SearchRooms v-model:number="numberFilter" v-model:description="descriptionFilter" v-model:price="priceFilter" />
 

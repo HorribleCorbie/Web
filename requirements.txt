@@ -11,8 +11,7 @@ django-debug-toolbar == 8.0.0
 xlsxwriter == 3.3.1
 pyotp == 2.10.0
 qrcode == 8.2
-# djangorestframework-simplejwt == 5.5.1
-# pyjwt == 2.15.1
+#почистить код от мусора
 #python manage.py runserver localhost:8080
 #python manage.py makemigrations
 #python manage.py migrate

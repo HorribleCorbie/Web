@@ -4,7 +4,6 @@ const selectedNumber = defineModel('number', { default: null })
 const selectedDescription = defineModel('description', { default: null })
 const selectedPrice = defineModel('price', { default: null })
 
-
 function clearNumber() {
     selectedNumber.value = null
 }
