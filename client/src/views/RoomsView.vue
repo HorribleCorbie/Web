@@ -209,12 +209,12 @@ async function onRemoveClick(room) {
 
 const exportHref = computed(() => {
   return '/api/rooms/export'
-}) 
+})
 
 let formattedRooms = computed(() => {
   return rooms.value.map(item => ({
     ...item,
-    user_name:  item.user_first_name || item.user_name
+    user_name: item.user_first_name || item.user_name
   }))
 })
 </script>
@@ -236,7 +236,7 @@ let formattedRooms = computed(() => {
     </div>
 
     <div class="objects">
-      <button type="button" v-if="role != 2" class="btn btn-warning" data-bs-toggle="modal"
+      <button type="button" v-if="role != 2 && thisCanBeAddAndChanged" class="btn btn-warning" data-bs-toggle="modal"
         data-bs-target="#roomModel">
         Добавить номер
       </button>
@@ -253,7 +253,7 @@ let formattedRooms = computed(() => {
             <th scope="col">Описание</th>
             <th scope="col">Фото</th>
             <th scope="col">Цена</th>
-            <th scope="col">Управление</th>
+            <th scope="col" v-if="role == 2 ||  thisCanBeAddAndChanged">Управление</th>
             <th v-if="isSuperUser" scope="col">Автор</th>
           </tr>
         </thead>
@@ -265,9 +265,9 @@ let formattedRooms = computed(() => {
                 @click="currentImage = room.picture" data-bs-toggle="modal" data-bs-target="#imageModal"
                 style="max-height: 60px;"></td>
             <td>{{ room.price }}</td>
-            <td>
+            <td v-if="role == 2 || thisCanBeAddAndChanged">
               <div class="buttons-div">
-                <div class="buttons-div" v-if="(room.user === id || isSuperUser) && thisCanBeAddAndChanged">
+                <div class="buttons-div" v-if="role != 2">
                   <button class="btn btn-success" @click="onRoomEditClick(room)" data-bs-toggle="modal"
                     data-bs-target="#editRoomModal">
                     <i class="bi bi-pen-fill"> </i>
@@ -277,13 +277,14 @@ let formattedRooms = computed(() => {
                     <i class="bi bi-x"></i>
                   </button>
                 </div>
-                <button class="btn btn-warning" @click="selectedRoom = room; accomodattionModal = true">
+                <button class="btn btn-warning" v-if="role == 2 || (isSuperUser && thisCanBeAddAndChanged)"
+                  @click="selectedRoom = room; accomodattionModal = true">
                   <i class="bi bi-plus-circle"></i>
                 </button>
               </div>
             </td>
             <td v-if="isSuperUser">
-                {{ room.user_name}}
+              {{ room.user_name }}
             </td>
           </tr>
         </tbody>
@@ -299,11 +300,11 @@ let formattedRooms = computed(() => {
           </li>
           <li class="page-item" v-if="page > 0"><span href="" class="page-link">{{ page }}</span></li>
           <li @click="page = page + 1" class="page-item" v-if="page + 1 < pagesCount"><a class="page-link">{{ page + 1
-          }}</a></li>
+              }}</a></li>
           <li @click="page = page + 2" class="page-item" v-if="page + 2 < pagesCount"><a class="page-link">{{ page + 2
-          }}</a></li>
+              }}</a></li>
           <li @click="page = page + 3" class="page-item" v-if="page + 3 < pagesCount"><a class="page-link">{{ page + 3
-          }}</a></li>
+              }}</a></li>
 
           <li class="page-item" v-if="page < pagesCount">
             <a class="page-link" href="#" @click="page += 1">Next</a>

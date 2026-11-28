@@ -7,7 +7,6 @@ import pandas
 from django.contrib.auth.models import User
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.utils import timezone
 from django.core.cache import cache
 from rest_framework.viewsets import GenericViewSet
 from django.db.models import Q
@@ -32,7 +31,7 @@ class RoomsViewset(mixins.CreateModelMixin,
     serializer_class = RoomSerializer 
         
     def get_permissions(self):
-        if self.action in ['list', 'create', 'authors']:
+        if self.action in ['list', 'authors']:
             return [AllowAny()]
         return [OTPRequired(), RolePermission()]
     
@@ -171,7 +170,7 @@ class ServicesViewset(mixins.CreateModelMixin,
     serializer_class = ServiceSerializer
         
     def get_permissions(self):
-        if self.action in ['list', 'create', 'authors']:
+        if self.action in ['list', 'authors']:
             return [AllowAny()]
         else:
             return [OTPRequired(), RolePermission()]

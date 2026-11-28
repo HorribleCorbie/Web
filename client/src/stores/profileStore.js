@@ -85,7 +85,7 @@ const useProfileStore = defineStore('profileStore', () => {
     }
 
     onBeforeMount(() => {
-        fetchMe();
+        fetchMe()
     })
 
     return {

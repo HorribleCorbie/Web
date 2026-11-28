@@ -204,7 +204,7 @@ const exportHref = computed (()=>{
     </div>
 
     <div class="objects">
-      <button type="button" v-if="role != 2" class="btn btn-warning" data-bs-toggle="modal"
+      <button type="button" v-if="role != 2 && thisCanBeAddAndChanged" class="btn btn-warning" data-bs-toggle="modal"
         data-bs-target="#serviceModel">
         Добавить услугу
       </button>
@@ -218,7 +218,7 @@ const exportHref = computed (()=>{
             <th scope="col">Название</th>
             <th scope="col">Цена</th>
             <th scope="col">Фото</th>
-            <th scope="col">Управление</th>
+            <th scope="col" v-if="role == 2 ||  thisCanBeAddAndChanged">Управление</th>
             <th v-if="isSuperUser" scope="col">Автор</th>
           </tr>
         </thead>
@@ -229,9 +229,9 @@ const exportHref = computed (()=>{
             <td v-show="service.picture"><img :src="service.picture" type="button"
                 @click="selectedImage = service.picture" data-bs-toggle="modal" data-bs-target="#imageModal"
                 style="max-height: 60px;"></td>
-            <td>
+            <td v-if="role == 2 ||  thisCanBeAddAndChanged">
               <div class="buttons-div">
-                <div class="buttons-div" v-if="(service.user === id || isSuperUser) && thisCanBeAddAndChanged">
+                <div class="buttons-div" v-if="role != 2">
                   <button class="btn btn-success" @click="onServiceEditClick(service)" data-bs-toggle="modal"
                     data-bs-target="#editServiceModal">
                     <i class="bi bi-pen-fill"> </i>

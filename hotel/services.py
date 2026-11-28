@@ -1,5 +1,6 @@
 from rest_framework.exceptions import ValidationError
 from .models import Accomodattion, Profile, Provision
+from django.utils import timezone
 
 class ServiceAccomodation:
     
@@ -96,6 +97,8 @@ class ServiceProvision:
         if (quantity<=0 or quantity>100):
             raise ValidationError("Количество должно быть в диапазоне от 1 до 100")
 
+        if not (accomodattion.in_date <= timezone.now() <= accomodattion.out_date):
+            raise ValidationError("Проживание должно быть активно.")
 
         price = service.price * quantity
 

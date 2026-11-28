@@ -145,4 +145,5 @@ INTERNAL_IPS = [
 
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'hotel.pagination.OptionalPagination',
+    'EXCEPTION_HANDLER': 'hotel.exceptions.custom_exception_handler'
 }

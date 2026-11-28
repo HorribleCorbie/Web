@@ -24,13 +24,14 @@ const {
     isSuperUser,
     id,
     thisCanBeAddAndChanged,
-    userName
+    userName,
+    role
 } = storeToRefs(profileStore)
 
 const isFormStats = ref(false)
 
 const totalPrice = computed(() => {
-    const { in_date, out_date , room} = accomodattionToEdit.value || {}
+    const { in_date, out_date, room } = accomodattionToEdit.value || {}
 
     if (!in_date || !out_date || !room) return 0
 
@@ -153,7 +154,8 @@ watch(page, () => {
         </div>
 
         <div class="objects">
-            <button type="button" class="btn btn-warning" @click="accomodattionModal = true">
+            <button type="button" class="btn btn-warning" v-if="role != 2 && thisCanBeAddAndChanged"
+                @click="accomodattionModal = true">
                 Добавить проживание
             </button>
             <div v-if="loading">Данные загружаются, подождите...</div>
@@ -206,7 +208,7 @@ watch(page, () => {
                     </li>
 
                     <li @click="page = page - 1" class="page-item" v-if="page - 1 > 0"><a class="page-link">{{ page - 1
-                    }}</a>
+                            }}</a>
                     </li>
                     <li class="page-item" v-if="page > 0"><span href="" class="page-link">{{ page }}</span></li>
                     <li @click="page = page + 1" class="page-item" v-if="page + 1 < pagesCount"><a class="page-link">{{

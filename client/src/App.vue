@@ -1,14 +1,5 @@
 <script setup>
 import NavBar from '@/components/NavBar.vue'
-import ErrorModal from '@/components/ErrorModal.vue';
-import useErrorStore from './stores/errorStore';
-import { storeToRefs } from 'pinia';
-
-const errorStore = useErrorStore()
-const {
-  textOfError,
-  isError,
-} = storeToRefs(errorStore)
 
 </script>
 
@@ -19,5 +10,5 @@ const {
     <router-view />
   </div>
 
-  <ErrorModal v-if="isError" v-model="isError" :textOfError="textOfError" />
+  <notifications position="top left" classes="vue-notification" />
 </template>

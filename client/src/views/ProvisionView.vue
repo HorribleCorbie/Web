@@ -14,7 +14,8 @@ const profileStore = useProfileStore();
 const {
     isSuperUser,
     id,
-    thisCanBeAddAndChanged
+    thisCanBeAddAndChanged,
+    role
 } = storeToRefs(profileStore)
 
 let provisionModal = ref(false)
@@ -182,7 +183,8 @@ const exportHref = computed(() => {
         </div>
 
         <div class="objects">
-            <button type="button" class="btn btn-warning" @click="provisionModal = true">
+            <button type="button" class="btn btn-warning" @click="provisionModal = true"
+                v-if="role != 2 && thisCanBeAddAndChanged">
                 Добавить оказание услуги
             </button>
             <div v-if="loading">Данные загружаются, подождите...</div>
@@ -237,7 +239,7 @@ const exportHref = computed(() => {
                     </li>
 
                     <li @click="page = page - 1" class="page-item" v-if="page - 1 > 0"><a class="page-link">{{ page - 1
-                            }}</a>
+                    }}</a>
                     </li>
                     <li class="page-item" v-if="page > 0"><span href="" class="page-link">{{ page }}</span></li>
                     <li @click="page = page + 1" class="page-item" v-if="page + 1 < pagesCount"><a class="page-link">{{
